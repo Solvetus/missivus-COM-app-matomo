@@ -10,7 +10,7 @@
 namespace Piwik\Plugins\Missivus;
 
 use Piwik\Piwik;
-use Piwik\Plugins\Missivus\Config\Settings as MissivusConfig;
+use Piwik\Plugins\Missivus\Configuration\Settings as MissivusConfig;
 use Piwik\Settings\FieldConfig;
 use Piwik\Settings\Setting;
 use Solvetus\Missivus\Auth\Credentials;

@@ -34,10 +34,11 @@ Dependency-free PHP. Knows nothing about Matomo, WordPress, PSR, or Composer. De
 
 | Class | Responsibility |
 | --- | --- |
-| `Contract\HttpClientInterface` | The 2-method HTTP seam: `postJson()`, `putBinary()`. |
+| `Contract\HttpClientInterface` | The 2-method HTTP seam: `post()`, `put()`. |
 | `Contract\HttpResponse` | Value object: `status`, `body`, `headers`. |
-| `Contract\TokenCacheInterface` | `get(key)` / `set(key, value, ttlSeconds)`. |
-| `Contract\LoggerInterface` | `error()` / `warning()` / `info()`. Nulled by default. |
+| `Contract\TokenCacheInterface` | `get(key)` / `set(key, value, ttlSeconds)` / `delete(key)`. |
+| `Contract\LoggerInterface` | `error()` / `warning()` / `info()`. `NullLogger` by default. |
+| `Redactor` | The last thing between a credential and a log file. Blanks known secret literals, plus anything token-shaped it has never seen. |
 | `Exception\GraphException` | Carries HTTP status + the Graph error body (already redacted). |
 | `Auth\Credentials` | Immutable tenant/client/secret-or-cert holder. `__toString`/`__debugInfo` neutered so a var_dump or stack trace can never leak. |
 | `Auth\TokenProvider` | Client-credentials token acquisition + cache + refresh. Secret and certificate paths. |
@@ -59,7 +60,8 @@ $mailer->send(Message $message);   // void; throws GraphException on any failure
 | --- | --- |
 | `Missivus` (`Missivus.php`) | The `Piwik\Plugin` subclass. Registers the autoloader and the Vue asset. |
 | `SystemSettings` | The settings page. |
-| `Config\Settings` | Resolves effective config: `config.ini.php [Missivus]` wins over the DB. Single source of truth for both the transport and the settings UI. |
+| `Configuration\ConfigurationInterface` | What the transport needs to know, without reference to where it came from. Lets the transport's own behaviour be tested without a Matomo install. |
+| `Configuration\Settings` | The implementation. Resolves effective config: env → `config.ini.php [Missivus]` → DB. Single source of truth for both the transport and the settings UI. |
 | `Adapter\MatomoHttpClient` | `HttpClientInterface` over `Piwik\Http::sendHttpRequestBy()`. |
 | `Adapter\MatomoTokenCache` | `TokenCacheInterface` over `Piwik\Cache::getLazyCache()`. |
 | `Adapter\MatomoLogger` | `LoggerInterface` over Matomo's `Piwik\Log\LoggerInterface`. |
@@ -79,6 +81,12 @@ It is `require_once`d from **two** places, because either can be reached first:
 * `Missivus.php` — loaded by the plugin manager.
 
 `require_once` makes the double call free. No Composer, no generated map.
+
+**The settings namespace is `Configuration`, not `Config`, on purpose.** Matomo requires the DI file
+at `plugins/Missivus/config/config.php`, and a PSR-style `Config\` namespace directory would collide
+with it on any case-insensitive filesystem — macOS and Windows would silently merge `Config/` and
+`config/`, and the resulting layout then fails to load on the case-sensitive Linux box it actually
+deploys to. Naming the namespace `Configuration` removes the collision entirely.
 
 ---
 
@@ -105,11 +113,19 @@ the key from its own config file — no core edit, no monkey-patch:
 require_once __DIR__ . '/../libs/autoload.php';
 
 return [
-    'Piwik\Mail\Transport' => Piwik\DI::autowire(
-        Piwik\Plugins\Missivus\Mail\GraphTransport::class
-    ),
+    // The seam itself.
+    'Piwik\Mail\Transport' => Piwik\DI::autowire(GraphTransport::class),
+
+    // The portable contracts, satisfied by the thin Matomo adapters.
+    ConfigurationInterface::class => Piwik\DI::autowire(Configuration\Settings::class),
+    HttpClientInterface::class    => Piwik\DI::autowire(Adapter\MatomoHttpClient::class),
+    TokenCacheInterface::class    => Piwik\DI::autowire(Adapter\MatomoTokenCache::class),
+    LoggerInterface::class        => Piwik\DI::autowire(Adapter\MatomoLogger::class),
 ];
 ```
+
+`GraphTransport` type-hints those four interfaces rather than the concrete adapters, which is what
+lets the transport tests run against fakes with no Matomo present.
 
 **Why `GraphTransport extends Piwik\Mail\Transport`:** the container key is a concrete class name,
 so anything type-hinting `Piwik\Mail\Transport` still receives a valid instance; and the optional
@@ -145,7 +161,7 @@ Missivus restores the stock transport with zero cleanup.
 
 ### 4.2 The config-file override
 
-`Config\Settings` is the only thing that reads config. For each overridable key:
+`Configuration\Settings` is the only thing that reads config. For each overridable key:
 
 ```
 value = config.ini.php [Missivus] <key>   if that key is present and non-empty
@@ -168,7 +184,7 @@ redacted placeholders, so no `var_dump`, `print_r`, or uncaught-exception trace 
 ### 4.3 Environment variables
 
 Matomo's config layer resolves `[Section] key = "..."` only; it has **no** generic env-var
-interpolation. Rather than invent one, `Config\Settings` reads `getenv('MISSIVUS_' . strtoupper($key))`
+interpolation. Rather than invent one, `Configuration\Settings` reads `getenv('MISSIVUS_' . strtoupper($key))`
 as a **third** tier, checked *before* the config file. That is 4 lines, is the standard 12-factor
 shape, and matches the brief's "and env vars if Matomo's config layer allows it" — it allows it at
 the plugin level even though core does not.
@@ -306,7 +322,15 @@ Not configured (`enabled` off, or any of tenant/client/sender/credential missing
 same way: an error-level log, then fallback-or-throw. Nothing is ever silently dropped, which is the
 brief's hard requirement.
 
-### 6.4 `PIWIK_TEST_MODE`
+### 6.4 The off switch
+
+`enabled` defaults to **false**, and when it is off `GraphTransport` delegates straight to
+`parent::send()`. Activating the plugin therefore cannot break a working mail setup: it changes
+nothing until the operator has filled the settings in and turned it on. That is not a swallowed
+failure — it is the operator saying "do not use Graph", which makes Matomo's own transport the
+correct one.
+
+### 6.5 `PIWIK_TEST_MODE`
 
 The stock transport short-circuits to a `Test.Mail.send` event when `PIWIK_TEST_MODE` is defined
 *(verified, `core/Mail/Transport.php:106-113`)*. `GraphTransport` defers to `parent::send()` in that
@@ -372,9 +396,13 @@ Success is **HTTP 202**. Anything else throws.
    one returns `201`.
 4. `POST /v1.0/users/{sender}/messages/{id}/send` → `202`.
 
-If any step after step 1 fails, the draft is deleted (`DELETE /v1.0/users/{sender}/messages/{id}`,
-best-effort, failures logged not thrown) so a failed report does not leave orphaned drafts
-accumulating in the shared mailbox. Then the original error is rethrown.
+If any step after step 1 fails, the original error is rethrown — but first an **error-level log line
+names the orphaned draft**, mailbox and id, so an operator can remove it.
+
+Deleting it automatically would be nicer, and was the first design. It was dropped: the brief closes
+the HTTP adapter at **two methods**, and a `DELETE` would make it three. Widening a closed decision
+to tidy up after a failure that should be rare is the wrong trade, and a silent orphan accumulating
+in the shared mailbox would be worse than a noisy log line. Test 12 pins the behaviour.
 
 **Scheduled-report PDFs never fail on size** because the threshold check is automatic and total-aware
 — there is no configuration that can put a large PDF down the inline path.
@@ -396,26 +424,17 @@ Unit tests only — no network, no Matomo, no tenant. A `FakeHttpClient` impleme
 Graph endpoint": every assertion is about the exact URL, headers, and JSON body Missivus would have
 put on the wire.
 
-| # | Test | Asserts |
-| --- | --- | --- |
-| 1 | plain send | `POST …/users/{sender}/sendMail`, 202 accepted, HTML+text body shape, `Authorization: Bearer` present |
-| 2 | recipients | to / cc / bcc / replyTo all mapped, multiple recipients preserved |
-| 3 | token cached | two sends → exactly **one** token request |
-| 4 | token refresh | cache expiry → a second token request; TTL is `expires_in - 300` |
-| 5 | 401 retry | a 401 on send invalidates the token and retries **once**; a second 401 throws |
-| 6 | secret auth | token body carries `client_secret`, `grant_type=client_credentials`, `.default` scope |
-| 7 | certificate auth | token body carries `client_assertion_type` + a JWT whose header is `PS256`/`x5t#S256` and whose claims are `aud`/`iss`/`sub`/`jti`/`nbf`/`exp` |
-| 8 | **PS256 signature validity** | the produced signature verifies with the **`openssl` CLI** (`openssl dgst -sha256 -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-1 -verify`) — an independent implementation, which is what makes this a real check and not a tautology |
-| 9 | RS256 escape hatch | switching the algorithm produces an `x5t` header and a signature that `openssl_verify` accepts |
-| 10 | inline attachment | small file → single `sendMail` call, `isInline: true`, `contentId` set, base64 round-trips |
-| 11 | large attachment | 4 MB file → draft, createUploadSession with the right `size`, chunked PUTs with correct `Content-Range` and **no** `Authorization`, then `/send`; total call sequence asserted in order |
-| 12 | large-path failure cleanup | a failing upload triggers the draft `DELETE` and rethrows |
-| 13 | forced From | a differing From is overridden to the sender, a warning is logged, and the requested address lands in `replyTo` |
-| 14 | forced From no-clobber | an explicit reply-to is **not** overwritten |
-| 15 | fallback OFF | Graph failure → exception propagates, error logged, stock transport **not** called |
-| 16 | fallback ON | Graph failure → stock transport called, error still logged |
-| 17 | no secret leakage | a Graph error body containing a secret is redacted before it reaches the log or the exception message |
-| 18 | config precedence | env > `[Missivus]` > DB, and a file override blocks a DB write |
+| Suite | What it pins down |
+| --- | --- |
+| `TokenProviderTest` (9) | the client-credentials grant shape; the token cached so a second send makes no request; the TTL being `expires_in - 300` and refreshing exactly one second past it; a token shorter than the margin used but not cached; the certificate path sending a `client_assertion` with a PS256 / `x5t#S256` header and `aud`/`iss`/`sub`/`jti`/`nbf`/`exp` claims; an Entra rejection surfacing `AADSTS…`; a token response with no `access_token`; an unreachable endpoint reported not swallowed; missing config failing before any request goes out |
+| `ClientAssertionTest` (8) | **the PS256 signature verifying under the `openssl` CLI**; the `x5t#S256` thumbprint equalling SHA-256 of the certificate DER; the RS256 escape hatch producing an `x5t` header and a signature `openssl_verify` accepts; a fresh `jti` per assertion; an injectable clock; a missing certificate naming only the path; a passphrase-protected key working; the wrong passphrase failing **without echoing the passphrase** |
+| `GraphMailerTest` (17) | `POST …/users/{sender}/sendMail` with `Bearer` and `application/json`; HTML vs plaintext body selection; to / cc / bcc / replyTo mapping and multiple recipients; `saveToSentItems`; a small attachment inline in one request; an inline attachment keeping `isInline` + `contentId`; **a 4 MB file taking draft → createUploadSession → two chunked PUTs → send, asserted as an exact ordered URL list**, with correct `Content-Range`, `Content-Length` and **no `Authorization`** on the PUTs; three sub-ceiling files that together blow the budget also taking the draft path; a failed upload naming the orphaned draft id and rethrowing; a draft refusal naming `Mail.ReadWrite`; a 401 refreshing the token and retrying **once**; a second 401 failing; a non-202 carrying the Graph error body; no recipients and an empty sender refused before any request |
+| `GraphTransportTest` (10) | `Piwik\Mail` → `Message` mapping including attachments and CIDs; **forced From** overriding a different sender, logging a warning naming both addresses and `noreply_email_address`, and moving the requested address into Reply-To; a case-insensitively matching From producing no warning; an explicit Reply-To never clobbered; **fallback OFF** — logged and rethrown, stock transport untouched; **fallback ON** — stock transport used and the failure still logged at error level; an unconfigured plugin failing loudly with nothing sent; the off switch delegating to Matomo's transport without touching Graph and without logging an error; the test-email path ignoring the fallback even when it is on |
+| `RedactorTest` (8) | a known secret blanked wherever it appears; an `access_token` in a JSON body blanked even though we never held it; form-encoded `client_secret` blanked while harmless fields survive; `Bearer` headers and bare JWTs blanked; oversized bodies truncated; **an Entra error echoing our own secret not leaking it through the exception**; `Credentials` never rendering its secret through `__toString` or `__debugInfo` |
+
+**50 tests, all passing.** Every goal-critical behaviour the brief names — send, token refresh,
+secret auth, certificate auth, inline attachments, large attachments, forced From, fallback OFF and
+fallback ON — has at least one test above.
 
 ### 8.2 How it runs
 
@@ -449,6 +468,8 @@ docker run --rm -v "$PWD":/src -w /src php:7.2-cli \
 
 and the standalone suite is run under the same image. `php -l` on 8.5 is run too, so both ends of
 the supported range are covered.
+
+**Result:** lint clean and all 50 tests passing on both PHP 7.2.34 (the floor) and PHP 8.5.9.
 
 ### 8.4 End-to-end
 
@@ -504,7 +525,9 @@ deployment target is **5.12.0**, the current stable release.
 | 11 | `Piwik\Plugin` | `registerEvents()`, `AssetManager.getJavaScriptFiles` | Asset registration. | Event renamed. |
 | 12 | `Piwik\DI` | `autowire()` | The DI binding in `config/config.php`. | Matomo 5 wraps PHP-DI here; a DI-library swap changes it. |
 | 13 | Asset pipeline | `vue/dist/<Plugin>.umd.min.js` + `vue/dist/umd.metadata.json` | The Vue component. | Bundling scheme changes (it already changed once, in Matomo 4→5). |
-| 14 | `Piwik\Container\StaticContainer` | `get()` | Used by the API to obtain the transport. | Rename. |
+| 14 | `Piwik\Container\StaticContainer` | `get()` | Used by the API to obtain the transport's collaborators. | Rename. |
+| 15 | `PIWIK_TEST_MODE` constant | — | `GraphTransport` defers to the stock transport when defined, so Matomo's own integration tests keep passing with the plugin active *(mirrors `core/Mail/Transport.php:106`)*. | The constant being renamed or the hack removed. |
+| 16 | `Piwik\Settings\Plugin\SystemSettings` | public `$setting` properties + `Setting::getValue()` | `Configuration\Settings` reads settings by property name. | Storage API change. |
 
 Item 4 is the one to check first on any Matomo upgrade.
 
@@ -590,9 +613,9 @@ Each constraint in `docs/BRIEF.md`, checked against this plan.
 | Fallback: error log, optional fallback, never swallowed | §6.3 |
 | Fallback default OFF | §4.1 |
 | Zero third-party runtime deps | §2.1; the standalone test runner is dev-only and also dependency-free |
-| Unit tests vs mocked Graph + one documented E2E | §8 |
+| Unit tests vs mocked Graph + one documented E2E | §8 — 50 tests passing; E2E is §8.4 and INSTALL.md Part 8 |
 | Transport vendorable unchanged by WordPress | §2.1 — namespace `Solvetus\Missivus`, no Matomo symbol inside `libs/` |
-| Inline ceiling ~3 MB verified; above it draft→uploadSession→send; both paths tested | §7 (3 MB confirmed), tests 10–12 |
+| Inline ceiling ~3 MB verified; above it draft→uploadSession→send; both paths tested | §7 (3 MB confirmed); `GraphMailerTest` covers both paths, including the exact ordered call sequence |
 | Scheduled-report PDFs never fail on size | §7.2 — automatic, total-aware, unconfigurable |
 | Force From = sender, warn on mismatch | §6.2 |
 | Docs instruct `[General] noreply_email_address` | §6.2, §11 step 4, INSTALL.md |
@@ -619,6 +642,11 @@ Each constraint in `docs/BRIEF.md`, checked against this plan.
   Resolved in §4.3 — implemented at the plugin level, which is where it is allowed.
 * *Brief says "verify current limit, ~3 MB".* Verified: 3 MB is exact and current, and the 4 MB
   whole-request bound means the check must be total-aware, not just per-file — §7.
+* *A draft left behind by a failed upload wants a `DELETE`; the brief closes the HTTP adapter at
+  two methods.* The brief won. The orphan is named in an error-level log line instead of being
+  tidied away silently — §7.2.
+* *The transport needs live Matomo settings, but its own logic must be testable without Matomo.*
+  Resolved with `Configuration\ConfigurationInterface` — one small seam, not a rewrite — §2.2, §3.
 
 ---
 

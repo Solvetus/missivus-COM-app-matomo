@@ -12,7 +12,7 @@ namespace Piwik\Plugins\Missivus;
 use Piwik\Container\StaticContainer;
 use Piwik\Mail;
 use Piwik\Piwik;
-use Piwik\Plugins\Missivus\Config\ConfigurationInterface;
+use Piwik\Plugins\Missivus\Configuration\ConfigurationInterface;
 use Piwik\Plugins\Missivus\Mail\GraphTransport;
 
 /**

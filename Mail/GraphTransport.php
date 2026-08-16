@@ -11,7 +11,7 @@ namespace Piwik\Plugins\Missivus\Mail;
 
 use Piwik\Mail;
 use Piwik\Mail\Transport;
-use Piwik\Plugins\Missivus\Config\ConfigurationInterface;
+use Piwik\Plugins\Missivus\Configuration\ConfigurationInterface;
 use Solvetus\Missivus\Attachment;
 use Solvetus\Missivus\Auth\TokenProvider;
 use Solvetus\Missivus\Contract\HttpClientInterface;

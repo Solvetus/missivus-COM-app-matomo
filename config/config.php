@@ -30,10 +30,10 @@ return array(
     ),
 
     // The transport reads configuration through an interface so its own behaviour can be tested
-    // without a Matomo installation; Config\Settings is the implementation that reads the
+    // without a Matomo installation; Configuration\Settings is the implementation that reads the
     // environment, config.ini.php and the settings table.
-    Piwik\Plugins\Missivus\Config\ConfigurationInterface::class => Piwik\DI::autowire(
-        Piwik\Plugins\Missivus\Config\Settings::class
+    Piwik\Plugins\Missivus\Configuration\ConfigurationInterface::class => Piwik\DI::autowire(
+        Piwik\Plugins\Missivus\Configuration\Settings::class
     ),
 
     // The portable contracts, satisfied by the thin Matomo adapters.

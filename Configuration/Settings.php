@@ -7,7 +7,7 @@
  * @license https://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
-namespace Piwik\Plugins\Missivus\Config;
+namespace Piwik\Plugins\Missivus\Configuration;
 
 use Piwik\Config as MatomoConfig;
 use Piwik\Plugins\Missivus\SystemSettings;

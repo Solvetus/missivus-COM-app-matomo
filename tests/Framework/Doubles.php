@@ -9,7 +9,7 @@
 
 namespace Piwik\Plugins\Missivus\tests\Framework;
 
-use Piwik\Plugins\Missivus\Config\ConfigurationInterface;
+use Piwik\Plugins\Missivus\Configuration\ConfigurationInterface;
 use Solvetus\Missivus\Auth\Credentials;
 use Solvetus\Missivus\Contract\HttpClientInterface;
 use Solvetus\Missivus\Contract\HttpResponse;
@@ -17,7 +17,7 @@ use Solvetus\Missivus\Contract\LoggerInterface;
 use Solvetus\Missivus\Contract\TokenCacheInterface;
 
 require_once __DIR__ . '/../../libs/autoload.php';
-require_once __DIR__ . '/../../Config/ConfigurationInterface.php';
+require_once __DIR__ . '/../../Configuration/ConfigurationInterface.php';
 
 /**
  * The mocked Graph endpoint. Records every request and answers from a scripted queue, so a test

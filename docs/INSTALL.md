@@ -1,0 +1,321 @@
+# Installing Missivus
+
+This guide assumes you have **never used Microsoft Entra before**. Every click is spelled out.
+
+You will need:
+
+- An account in your Microsoft 365 tenant that can create app registrations and grant admin consent
+  — in practice, a **Global Administrator** or an **Application Administrator** who is also an
+  **Exchange Administrator**.
+- Access to the server Matomo runs on.
+
+Set aside about thirty minutes. Nothing here is reversible-by-accident; every step can be undone.
+
+Throughout, replace `example.com` with your own domain and `noreply@example.com` with whatever
+address you want Matomo's email to come from.
+
+---
+
+## Part 1 — Create the app registration
+
+This is the identity Matomo will use. It is not a user and has no password anyone types.
+
+1. Go to <https://entra.microsoft.com> and sign in.
+2. In the left-hand menu choose **Applications → App registrations**.
+3. Click **+ New registration**.
+4. Fill in the form:
+   - **Name**: `Missivus — Matomo mail` (only you will see this)
+   - **Supported account types**: **Accounts in this organizational directory only (Single tenant)**
+   - **Redirect URI**: leave completely empty. Missivus never redirects a browser anywhere, and an
+     empty value here is part of why this setup cannot be hijacked.
+5. Click **Register**.
+
+You now land on the app's **Overview** page. Two values on it go into Matomo. Copy them somewhere
+safe — they are identifiers, not secrets, so a note is fine:
+
+| On the Overview page | Goes into Matomo as |
+| --- | --- |
+| **Application (client) ID** | Client ID |
+| **Directory (tenant) ID** | Tenant ID |
+
+---
+
+## Part 2 — Grant the permission to send mail
+
+1. Still inside your app registration, choose **API permissions** in the left-hand menu.
+2. Click **+ Add a permission**.
+3. Choose **Microsoft Graph**.
+4. Choose **Application permissions**. This is the important choice — *not* "Delegated permissions".
+   Application permissions belong to the app itself, which is why no human ever has to sign in.
+5. In the search box type `Mail.Send`. Tick **Mail.Send**.
+6. **If Matomo will email attachments larger than 3 MB** — which scheduled PDF reports often are —
+   also search for `Mail.ReadWrite` and tick it. Microsoft requires it for the large-attachment
+   upload path: sending a big file means creating a draft first, and `Mail.Send` alone does not
+   allow that. If you skip it, ordinary email still works and only oversized attachments fail, with
+   an error naming this permission.
+7. Click **Add permissions**.
+8. Back on the API permissions page you will see your permissions with a warning triangle and the
+   status **Not granted for &lt;your organisation&gt;**. Click
+   **✓ Grant admin consent for &lt;your organisation&gt;**, then **Yes**.
+9. Confirm the Status column now reads **Granted for &lt;your organisation&gt;** with a green tick.
+
+> If the "Grant admin consent" button is greyed out, your account cannot consent. Ask a Global
+> Administrator to click it. Nothing else in this guide requires their involvement.
+
+You may also see **User.Read** listed as a delegated permission. Azure adds it automatically to new
+registrations. Missivus does not use it and you can safely remove it.
+
+---
+
+## Part 3 — Give the app a credential
+
+Pick **one** of these. A certificate is recommended and is what Missivus defaults to: it never
+travels in a request body, and secrets in Microsoft Entra now expire after at most two years, which
+means a diary entry and an outage if you forget.
+
+### Option A — Certificate (recommended)
+
+Run this on the Matomo server, or anywhere with `openssl` installed:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -keyout missivus.key -out missivus.crt \
+  -days 730 -nodes -subj "/CN=missivus-matomo"
+
+# Missivus wants one file containing both parts:
+cat missivus.key missivus.crt > missivus.pem
+```
+
+- `missivus.pem` is the file Matomo reads. **It is a credential — treat it like a password.**
+- `missivus.crt` is the public half, the only part you upload to Microsoft.
+
+Upload the public half:
+
+1. In your app registration choose **Certificates & secrets**.
+2. Select the **Certificates** tab, click **Upload certificate**.
+3. Choose `missivus.crt`, add a description, click **Add**.
+4. A thumbprint and an expiry date appear. **Put the expiry date in a calendar** — mail stops on
+   that day if the certificate is not replaced.
+
+Put the PEM somewhere outside your web root and outside the plugin directory, so a plugin update
+cannot overwrite it and a web server misconfiguration cannot serve it:
+
+```bash
+sudo mkdir -p /etc/matomo/secrets
+sudo mv missivus.pem /etc/matomo/secrets/missivus.pem
+sudo chown root:www-data /etc/matomo/secrets/missivus.pem
+sudo chmod 640 /etc/matomo/secrets/missivus.pem
+rm missivus.key missivus.crt      # no longer needed on this machine
+```
+
+Use `www-data` or whichever user your web server runs as.
+
+### Option B — Client secret
+
+1. In your app registration choose **Certificates & secrets**.
+2. On the **Client secrets** tab click **+ New client secret**.
+3. Give it a description and an expiry, then click **Add**.
+4. Copy the **Value** column immediately. **It is shown once and never again.** The "Secret ID"
+   column is not the secret and is not what you need.
+5. Put the expiry date in a calendar.
+
+---
+
+## Part 4 — Create the shared mailbox
+
+A shared mailbox needs no licence, which is the point: Matomo gets a real, monitorable mailbox for
+free.
+
+1. Go to <https://admin.microsoft.com>.
+2. Choose **Teams & groups → Shared mailboxes**.
+3. Click **+ Add a shared mailbox**.
+4. Name it something like `Matomo Analytics`, with the address `noreply@example.com`.
+5. Click **Save changes**. Give it a few minutes to appear everywhere.
+
+Do not add any members. Nobody needs to sign into it.
+
+---
+
+## Part 5 — Lock the app to that one mailbox
+
+**Do not skip this.** Until you do, the `Mail.Send` permission you granted in Part 2 lets the app
+send as *anyone* in your tenant. An application access policy narrows it to the single shared
+mailbox, and it is what makes this whole model safe.
+
+You need Exchange Online PowerShell. On Windows PowerShell 7, or on macOS or Linux with PowerShell
+installed:
+
+```powershell
+Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser
+Import-Module ExchangeOnlineManagement
+Connect-ExchangeOnline -UserPrincipalName you@example.com
+```
+
+Create a mail-enabled security group holding just the shared mailbox, then scope the app to it:
+
+```powershell
+New-DistributionGroup -Name "Missivus Mailboxes" `
+  -Alias missivus-mailboxes `
+  -Type Security `
+  -Members "noreply@example.com"
+
+New-ApplicationAccessPolicy `
+  -AppId "<your Application (client) ID from Part 1>" `
+  -PolicyScopeGroupId "missivus-mailboxes@example.com" `
+  -AccessRight RestrictAccess `
+  -Description "Missivus may only send as the Matomo shared mailbox"
+```
+
+Wait a few minutes — Exchange takes time to apply it — then check it worked:
+
+```powershell
+# Should say AccessCheckResult : Granted
+Test-ApplicationAccessPolicy -Identity "noreply@example.com" -AppId "<your client ID>"
+
+# Should say AccessCheckResult : Denied
+Test-ApplicationAccessPolicy -Identity "someone-else@example.com" -AppId "<your client ID>"
+```
+
+If the second command says **Granted**, the policy has not taken effect yet. Wait and try again
+before going any further.
+
+```powershell
+Disconnect-ExchangeOnline
+```
+
+---
+
+## Part 6 — Install the plugin
+
+Copy the plugin so it lands at `plugins/Missivus` inside your Matomo installation, then activate it:
+
+```bash
+cd /path/to/matomo
+git clone https://github.com/Solvetus/missivus-COM-app-matomo.git plugins/Missivus
+./console plugin:activate Missivus
+```
+
+Run `./console` as your web server user (`sudo -u www-data ./console …`) so file ownership stays
+consistent.
+
+Activating the plugin on its own changes nothing: Missivus starts switched off, and Matomo keeps
+using whatever mail settings it already had.
+
+---
+
+## Part 7 — Configure Matomo
+
+### Tell Matomo the From address
+
+Edit `config/config.ini.php` and make sure the `[General]` section contains:
+
+```ini
+[General]
+emails_enabled = 1
+noreply_email_address = "noreply@example.com"
+```
+
+Application-only sending can only send as the shared mailbox, so Missivus forces that From address
+regardless. Setting it here means Matomo and Microsoft agree, and no warnings appear in your log.
+
+### Enter the credentials
+
+You have two choices. **Either** is fine; the config file is usually better on a server you deploy
+by pulling code, because the settings then travel with your configuration rather than living in the
+database.
+
+**Option 1 — the settings page.** In Matomo go to **Administration → System → General settings** and
+scroll to **Missivus**. Fill in Tenant ID, Client ID, authentication method, the certificate path or
+client secret, and the sender mailbox. Click **Save**.
+
+**Option 2 — the config file.** Add a `[Missivus]` section to `config/config.ini.php`:
+
+```ini
+[Missivus]
+tenant_id = "00000000-0000-0000-0000-000000000000"
+client_id = "00000000-0000-0000-0000-000000000000"
+auth_method = "certificate"
+certificate_path = "/etc/matomo/secrets/missivus.pem"
+sender_mailbox = "noreply@example.com"
+```
+
+For a client secret instead, use:
+
+```ini
+auth_method = "secret"
+client_secret = "the Value you copied in Part 3"
+```
+
+Anything set here appears in the settings page marked *set in config file*, cannot be edited from
+the UI, and is never written to Matomo's database.
+
+Each key can also come from an environment variable, which beats both: `MISSIVUS_TENANT_ID`,
+`MISSIVUS_CLIENT_ID`, `MISSIVUS_AUTH_METHOD`, `MISSIVUS_CLIENT_SECRET`,
+`MISSIVUS_CERTIFICATE_PATH`, `MISSIVUS_CERTIFICATE_PASSPHRASE`, `MISSIVUS_SENDER_MAILBOX`.
+
+### Turn it on
+
+In **Administration → System → General settings → Missivus**, tick **Send email through Microsoft
+Graph** and click **Save**.
+
+---
+
+## Part 8 — Test it
+
+On the same settings page, enter your own address next to **Send a test email** and click the
+button.
+
+- **Success** — you will have an email within a minute. Microsoft accepting the message is not
+  quite the same as delivering it, so do check it actually arrives.
+- **Failure** — the exact error Microsoft returned is shown on the page. See the table below.
+
+As a second, independent check, sign out of Matomo and use **Lost your password?**. That exercises
+the real `Piwik\Mail` path rather than the test button.
+
+---
+
+## When it does not work
+
+| What you see | What it means | Fix |
+| --- | --- | --- |
+| `AADSTS7000215: Invalid client secret provided` | The secret is wrong, or you copied the Secret ID instead of the Value | Create a new secret and copy the **Value** column |
+| `AADSTS700027` or `invalid_client` with a certificate | The certificate Matomo is using is not the one uploaded to Entra | Re-upload `missivus.crt`; check `certificate_path` points at the PEM holding **both** the key and the certificate |
+| `AADSTS900023: Specified tenant identifier is not valid` | Wrong tenant ID | Recopy **Directory (tenant) ID** from the Overview page |
+| `ErrorAccessDenied` / `Access is denied` on send | The application access policy does not cover this mailbox, or admin consent was never granted | Re-run `Test-ApplicationAccessPolicy` from Part 5; re-check the green tick in Part 2 |
+| `ErrorAccessDenied` only on large attachments | `Mail.ReadWrite` is missing | Add it in Part 2 and grant admin consent again |
+| `MailboxNotEnabledForRESTAPI` | The sender address is not a real Exchange Online mailbox | Check the shared mailbox exists and the address is spelled right |
+| `The mailbox is either inactive, soft-deleted, or is hosted on-premise` | The mailbox has not finished provisioning | Wait fifteen minutes and try again |
+| `certificate file is not readable at …` | File permissions | `chown root:www-data` and `chmod 640` the PEM, and check the path |
+| `the private key … could not be loaded` | Wrong passphrase, or the PEM has no `PRIVATE KEY` block | Rebuild the PEM: `cat missivus.key missivus.crt > missivus.pem` |
+| Nothing happens, no error | Missivus is switched off, so Matomo used its own settings | Tick **Send email through Microsoft Graph** |
+
+Missivus writes every failure to Matomo's log at error level, so
+**Administration → Diagnostic → System Check** and your Matomo log are the next place to look.
+Secrets are redacted before anything is logged.
+
+If Entra rejects the certificate assertion with a signature error and you have checked everything
+above, add `certificate_algorithm = "RS256"` to the `[Missivus]` section. Missivus signs with PS256
+by default, which is what Microsoft's current documentation specifies; RS256 is the older algorithm
+that Entra also accepts. This should not be necessary — please open an issue if it is.
+
+---
+
+## Keeping it working
+
+- **Diary the credential expiry.** A certificate or secret that expires stops mail dead. Replace it
+  a week early: upload the new certificate, change `certificate_path`, test, then delete the old
+  one from Entra.
+- **After a Matomo upgrade**, press **Send test email** once. `PLAN.md` lists exactly which Matomo
+  internals this plugin depends on if something does break.
+- **To turn it off**, untick the setting, or run `./console plugin:deactivate Missivus`. Matomo
+  reverts to its own mail settings immediately, with nothing to clean up.
+
+---
+
+## Getting help
+
+Open an issue at
+<https://github.com/Solvetus/missivus-COM-app-matomo/issues>. Never paste a client secret,
+a certificate, or a PEM file into an issue.
+
+If you would rather have this set up for you, [Solvetus](https://solvetus.com) does paid
+installation and support.
