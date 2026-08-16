@@ -1,0 +1,25 @@
+{
+    "name": "Missivus",
+    "version": "0.1.0",
+    "description": "Send all Matomo email through the Microsoft Graph API using application permissions and a shared mailbox. No user login, no delegated OAuth, no SMTP.",
+    "theme": false,
+    "keywords": ["email", "mail", "microsoft", "graph", "office365", "microsoft365", "exchange", "smtp", "entra"],
+    "license": "GPL-3.0-or-later",
+    "homepage": "https://github.com/Solvetus/missivus-COM-app-matomo",
+    "support": {
+        "email": "hello@solvetus.com",
+        "issues": "https://github.com/Solvetus/missivus-COM-app-matomo/issues",
+        "source": "https://github.com/Solvetus/missivus-COM-app-matomo"
+    },
+    "authors": [
+        {
+            "name": "Solvetus",
+            "email": "hello@solvetus.com",
+            "homepage": "https://solvetus.com"
+        }
+    ],
+    "require": {
+        "matomo": ">=5.0.0-b1,<6.0.0-b1",
+        "php": ">=7.2.5"
+    }
+}

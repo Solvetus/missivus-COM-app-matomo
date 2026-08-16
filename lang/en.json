@@ -1,0 +1,55 @@
+{
+    "Missivus": {
+        "PluginDescription": "Send all Matomo email through the Microsoft Graph API using application permissions and a shared mailbox. No user login, no delegated OAuth, no SMTP.",
+        "SettingsHeadline": "Missivus — Microsoft Graph email",
+
+        "SettingEnabledTitle": "Send email through Microsoft Graph",
+        "SettingEnabledDescription": "When this is off, Matomo keeps using its own mail settings. Turn it on once the fields below are filled in and the test email works.",
+
+        "SettingTenantIdTitle": "Directory (tenant) ID",
+        "SettingTenantIdDescription": "The Directory (tenant) ID shown on your app registration's Overview page in Microsoft Entra.",
+
+        "SettingClientIdTitle": "Application (client) ID",
+        "SettingClientIdDescription": "The Application (client) ID shown on your app registration's Overview page in Microsoft Entra.",
+
+        "SettingAuthMethodTitle": "Authentication method",
+        "SettingAuthMethodDescription": "How Matomo proves it is your application. A certificate is recommended: it does not expire as quickly as a secret and never travels in a request body.",
+        "AuthMethodCertificate": "Certificate (recommended)",
+        "AuthMethodSecret": "Client secret",
+
+        "SettingClientSecretTitle": "Client secret",
+        "SettingClientSecretDescription": "The secret Value from Certificates & secrets in your app registration. It is stored write-only and is never shown again or written to the log.",
+
+        "SettingCertificatePathTitle": "Certificate file path",
+        "SettingCertificatePathDescription": "Absolute path on this server to a PEM file containing both the private key and the certificate. Keep it outside the plugin directory, readable only by the web server user.",
+
+        "SettingCertificatePassphraseTitle": "Certificate passphrase",
+        "SettingCertificatePassphraseDescription": "Only needed if the private key is encrypted. Stored write-only and never shown again or written to the log.",
+
+        "SettingSenderMailboxTitle": "Sender mailbox",
+        "SettingSenderMailboxDescription": "The shared mailbox every email is sent from, for example noreply@example.com.",
+        "SettingSenderMailboxHelp": "This address is also forced as the From address on every email, because application-only sending cannot use any other. Set noreply_email_address in the [General] section of config.ini.php to the same address.",
+
+        "SettingSaveToSentItemsTitle": "Keep a copy in Sent Items",
+        "SettingSaveToSentItemsDescription": "Store every sent email in the shared mailbox's Sent Items folder. Off by default, so a no-reply mailbox does not fill up.",
+
+        "SettingFallbackTitle": "Fall back to Matomo's own mail settings",
+        "SettingFallbackDescription": "If Microsoft Graph fails, try again using Matomo's configured SMTP or PHP mail settings. Off by default: a failure you can see is better than an email that quietly goes nowhere. The failure is written to the log either way.",
+
+        "SettingTestEmailTitle": "Send a test email",
+        "SettingTestEmailDescription": "Save your settings first, then send a test email to check the whole path end to end. The exact error from Microsoft is shown if it fails.",
+
+        "SetInConfigFile": "set in config file",
+        "SetInConfigFileDescription": "This value comes from the [Missivus] section of config.ini.php (or the MISSIVUS_%1$s environment variable) and cannot be changed here. Edit that file to change it.",
+
+        "SendTestEmail": "Send test email",
+        "SendingTestEmail": "Sending…",
+        "TestEmailSent": "Test email sent.",
+        "TestEmailFailed": "Test email failed.",
+        "TestEmailRecipientLabel": "Send to",
+        "TestEmailSubject": "Missivus test email from Matomo",
+        "TestEmailBody": "This is a test email sent by the Missivus plugin through the Microsoft Graph API, from the mailbox %1$s. If you are reading it, Matomo can send email.",
+        "TestEmailSentTo": "Test email sent to %1$s. Check that it arrives — Microsoft accepted it, which is not quite the same as delivering it.",
+        "TestEmailNoRecipient": "No recipient. Enter an address, or add one to your own Matomo user account."
+    }
+}

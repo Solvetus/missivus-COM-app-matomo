@@ -1,0 +1,24 @@
+# Never commit credentials. See docs/INSTALL.md — secrets live in config.ini.php
+# or outside the plugin tree entirely.
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.cer
+.env
+.env.*
+config.ini.php
+
+# Tooling
+/vendor/
+/node_modules/
+composer.lock
+package-lock.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

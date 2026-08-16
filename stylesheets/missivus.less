@@ -1,0 +1,30 @@
+// Missivus — send Matomo email through the Microsoft Graph API.
+// @license https://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
+
+.missivusTestEmail {
+    .missivusTestEmailRow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .missivusTestEmailResult {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 4px;
+        // Graph error bodies are long and often contain no spaces.
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+
+    .missivusTestEmailResult.success {
+        background: #e8f5e9;
+        border: 1px solid #a5d6a7;
+    }
+
+    .missivusTestEmailResult.failure {
+        background: #fdecea;
+        border: 1px solid #f5c6cb;
+    }
+}
