@@ -35,4 +35,15 @@ return array(
     Piwik\Plugins\Missivus\Config\ConfigurationInterface::class => Piwik\DI::autowire(
         Piwik\Plugins\Missivus\Config\Settings::class
     ),
+
+    // The portable contracts, satisfied by the thin Matomo adapters.
+    Solvetus\Missivus\Contract\HttpClientInterface::class => Piwik\DI::autowire(
+        Piwik\Plugins\Missivus\Adapter\MatomoHttpClient::class
+    ),
+    Solvetus\Missivus\Contract\TokenCacheInterface::class => Piwik\DI::autowire(
+        Piwik\Plugins\Missivus\Adapter\MatomoTokenCache::class
+    ),
+    Solvetus\Missivus\Contract\LoggerInterface::class => Piwik\DI::autowire(
+        Piwik\Plugins\Missivus\Adapter\MatomoLogger::class
+    ),
 );

@@ -64,9 +64,9 @@ class API extends \Piwik\Plugin\API
 
         $transport = new GraphTransport(
             $config,
-            StaticContainer::get(Adapter\MatomoHttpClient::class),
-            StaticContainer::get(Adapter\MatomoTokenCache::class),
-            StaticContainer::get(Adapter\MatomoLogger::class)
+            StaticContainer::get(\Solvetus\Missivus\Contract\HttpClientInterface::class),
+            StaticContainer::get(\Solvetus\Missivus\Contract\TokenCacheInterface::class),
+            StaticContainer::get(\Solvetus\Missivus\Contract\LoggerInterface::class)
         );
 
         try {

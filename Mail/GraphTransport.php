@@ -11,12 +11,12 @@ namespace Piwik\Plugins\Missivus\Mail;
 
 use Piwik\Mail;
 use Piwik\Mail\Transport;
-use Piwik\Plugins\Missivus\Adapter\MatomoHttpClient;
-use Piwik\Plugins\Missivus\Adapter\MatomoLogger;
-use Piwik\Plugins\Missivus\Adapter\MatomoTokenCache;
 use Piwik\Plugins\Missivus\Config\ConfigurationInterface;
 use Solvetus\Missivus\Attachment;
 use Solvetus\Missivus\Auth\TokenProvider;
+use Solvetus\Missivus\Contract\HttpClientInterface;
+use Solvetus\Missivus\Contract\LoggerInterface;
+use Solvetus\Missivus\Contract\TokenCacheInterface;
 use Solvetus\Missivus\Exception\GraphException;
 use Solvetus\Missivus\GraphMailer;
 use Solvetus\Missivus\Message;
@@ -36,26 +36,26 @@ class GraphTransport extends Transport
     /** @var ConfigurationInterface */
     private $config;
 
-    /** @var MatomoHttpClient */
+    /** @var HttpClientInterface */
     private $http;
 
-    /** @var MatomoTokenCache */
+    /** @var TokenCacheInterface */
     private $cache;
 
-    /** @var MatomoLogger */
+    /** @var LoggerInterface */
     private $logger;
 
     /**
      * @param ConfigurationInterface $config
-     * @param MatomoHttpClient $http
-     * @param MatomoTokenCache $cache
-     * @param MatomoLogger     $logger
+     * @param HttpClientInterface $http
+     * @param TokenCacheInterface $cache
+     * @param LoggerInterface     $logger
      */
     public function __construct(
         ConfigurationInterface $config,
-        MatomoHttpClient $http,
-        MatomoTokenCache $cache,
-        MatomoLogger $logger
+        HttpClientInterface $http,
+        TokenCacheInterface $cache,
+        LoggerInterface $logger
     ) {
         $this->config = $config;
         $this->http = $http;
