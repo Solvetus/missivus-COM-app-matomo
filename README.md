@@ -40,7 +40,8 @@ other mailbox in your tenant. [docs/INSTALL.md](docs/INSTALL.md) treats that ste
   attachments — including the PDFs that scheduled reports generate.
 - **Large attachments never fail on size.** Files under 3 MB go inline; anything larger is uploaded
   through a Graph upload session automatically. There is no setting that can get this wrong.
-- **Certificate or client secret.** Certificates are recommended and are the default.
+- **Client secret or certificate.** A client secret is the quickest way in and is the default; a
+  certificate is supported as optional hardening.
 - **Secrets stay out of the database if you want them to.** Any value can be supplied from a
   `[Missivus]` section of `config.ini.php` or from an environment variable, which then wins over the
   settings UI and is never written to the option table.
@@ -57,52 +58,103 @@ other mailbox in your tenant. [docs/INSTALL.md](docs/INSTALL.md) treats that ste
 - A Microsoft 365 tenant, and permission to create an app registration and run one Exchange Online
   PowerShell command
 
-## Install
+## Install manually
 
-Full, step-by-step instructions written for someone who has not used Microsoft Entra before are in
+1. **Upload and unzip.** Put `Missivus-<version>.zip` on your server and unzip it inside Matomo's
+   `plugins/` directory, so the plugin ends up at `plugins/Missivus/` with `plugin.json` directly
+   inside it. Make sure the files belong to whichever user your web server runs as (often
+   `www-data`).
+
+   ```bash
+   cd /path/to/matomo/plugins
+   unzip Missivus-0.1.0.zip
+   chown -R www-data:www-data Missivus
+   ```
+
+   You can also upload the zip through **Administration → Plugins → Install a new plugin → Upload**
+   if your Matomo allows plugin uploads.
+
+2. **Activate it.** Either tick it under **Administration → Plugins**, or from the command line:
+
+   ```bash
+   ./console plugin:activate Missivus
+   ```
+
+   Activating changes nothing on its own — Missivus starts switched off and Matomo keeps using
+   whatever mail settings it already had.
+
+3. **Configure it.** Go to **Administration → System → General settings** and scroll to
+   **Missivus**. Fill in:
+
+   - **Directory (tenant) ID** and **Application (client) ID** — both from your app registration's
+     Overview page in Microsoft Entra
+   - **Authentication method** — leave it on **Client secret**
+   - **Client secret** — the secret **Value** from Certificates & secrets
+   - **Sender mailbox** — the shared mailbox Matomo should send from
+   - Tick **Send email through Microsoft Graph**
+
+   Save, then press **Send test email**. If it fails, the exact error Microsoft returned is shown
+   on the page.
+
+That is the whole installation. **You do not need to edit `config.ini.php`.** The
+[`[Missivus]` overrides](#configuration) below are entirely optional — they exist for people who
+prefer credentials to live in a file rather than the database.
+
+The one Matomo setting worth adding by hand is the From address, under
+**Administration → System → General settings → Email server settings**, or in `config.ini.php`:
+
+```ini
+[General]
+noreply_email_address = "noreply@example.com"
+```
+
+Set it to the same shared mailbox. Application-only sending cannot use any other From address, so
+Missivus forces it either way — setting it here just keeps a warning out of your log.
+
+### Getting the Microsoft side ready
+
+The plugin needs an app registration before any of the above will work. Full step-by-step
+instructions, written for someone who has never used Microsoft Entra, are in
 **[docs/INSTALL.md](docs/INSTALL.md)**. In outline:
 
 1. Create an app registration in Microsoft Entra.
 2. Grant it the **Mail.Send** application permission — plus **Mail.ReadWrite** if you send
    attachments over 3 MB — and grant admin consent.
-3. Add a certificate (recommended) or a client secret.
+3. Add a **client secret** (or a certificate, if you would rather — see the guide).
 4. Create the shared mailbox you want Matomo to send from.
 5. Create an **application access policy** in Exchange Online scoping the app to that one mailbox.
-6. Copy the plugin into `plugins/Missivus`, run `./console plugin:activate Missivus`, fill in the
-   settings, and press **Send test email**.
 
 ## Configuration
 
-Everything can be set in **Administration → System → General settings → Missivus**.
+Everything is set in **Administration → System → General settings → Missivus**. Nothing below is
+required.
 
-Credentials can instead live in `config/config.ini.php`, which is often the better choice on a
-server you deploy by pulling code:
+**Optionally**, credentials can live in `config/config.ini.php` instead. This suits a server you
+deploy by pulling code, where you would rather configuration travelled with your files than sat in
+the database:
 
 ```ini
 [Missivus]
 tenant_id = "00000000-0000-0000-0000-000000000000"
 client_id = "00000000-0000-0000-0000-000000000000"
-auth_method = "certificate"
-certificate_path = "/etc/matomo/secrets/missivus.pem"
+auth_method = "secret"
+client_secret = "the Value from Certificates & secrets"
 sender_mailbox = "noreply@example.com"
-
-[General]
-noreply_email_address = "noreply@example.com"
 ```
 
-A value set there is shown in the settings page as *set in config file*, cannot be edited from the
+A value set there appears in the settings page as *set in config file*, cannot be edited from the
 UI, and is never copied into the database. Each key can also be supplied as an environment variable
 — `MISSIVUS_TENANT_ID`, `MISSIVUS_CLIENT_SECRET`, and so on — which takes precedence over both.
 
-Set `[General] noreply_email_address` to the same shared mailbox. Application-only sending cannot
-use any other From address, so Missivus forces it and logs a warning whenever Matomo asked for
-something different.
+If you use a certificate instead of a secret, swap those two lines for
+`auth_method = "certificate"` and `certificate_path = "/etc/matomo/secrets/missivus.pem"`.
 
 ## Development
 
 ```
 php tests/run.php                       # the unit suite, no Composer or PHPUnit needed
 ./console tests:run Missivus            # the same tests under Matomo's PHPUnit
+./tools/build-zip.sh                    # builds dist/Missivus-<version>.zip for manual install
 ```
 
 [PLAN.md](PLAN.md) documents the architecture, the DI seam, and — usefully before a Matomo

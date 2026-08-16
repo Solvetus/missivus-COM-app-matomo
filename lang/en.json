@@ -13,15 +13,15 @@
         "SettingClientIdDescription": "The Application (client) ID shown on your app registration's Overview page in Microsoft Entra.",
 
         "SettingAuthMethodTitle": "Authentication method",
-        "SettingAuthMethodDescription": "How Matomo proves it is your application. A certificate is recommended: it does not expire as quickly as a secret and never travels in a request body.",
-        "AuthMethodCertificate": "Certificate (recommended)",
+        "SettingAuthMethodDescription": "How Matomo proves it is your application. A client secret is the quickest to set up. A certificate is more secure and does not travel in a request body, but you have to manage a key file on this server.",
+        "AuthMethodCertificate": "Certificate",
         "AuthMethodSecret": "Client secret",
 
         "SettingClientSecretTitle": "Client secret",
         "SettingClientSecretDescription": "The secret Value from Certificates & secrets in your app registration. It is stored write-only and is never shown again or written to the log.",
 
         "SettingCertificatePathTitle": "Certificate file path",
-        "SettingCertificatePathDescription": "Absolute path on this server to a PEM file containing both the private key and the certificate. Keep it outside the plugin directory, readable only by the web server user.",
+        "SettingCertificatePathDescription": "Only needed if you chose Certificate. Absolute path on this server to a PEM file containing both the private key and the certificate. Keep it outside the plugin directory, readable only by the web server user.",
 
         "SettingCertificatePassphraseTitle": "Certificate passphrase",
         "SettingCertificatePassphraseDescription": "Only needed if the private key is encrypted. Stored write-only and never shown again or written to the log.",

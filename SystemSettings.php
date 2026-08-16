@@ -66,9 +66,9 @@ class SystemSettings extends \Piwik\Settings\Plugin\SystemSettings
         $this->tenantId = $this->createTenantIdSetting();
         $this->clientId = $this->createClientIdSetting();
         $this->authMethod = $this->createAuthMethodSetting();
+        $this->clientSecret = $this->createClientSecretSetting();
         $this->certificatePath = $this->createCertificatePathSetting();
         $this->certificatePassphrase = $this->createCertificatePassphraseSetting();
-        $this->clientSecret = $this->createClientSecretSetting();
         $this->senderMailbox = $this->createSenderMailboxSetting();
         $this->saveToSentItems = $this->createSaveToSentItemsSetting();
         $this->fallbackToDefault = $this->createFallbackSetting();
@@ -106,14 +106,16 @@ class SystemSettings extends \Piwik\Settings\Plugin\SystemSettings
 
     private function createAuthMethodSetting()
     {
-        $default = Credentials::METHOD_CERTIFICATE;
+        // A client secret is the documented first route: two clicks in Entra and nothing to manage
+        // on the filesystem. Certificates are supported as optional hardening, not as the default.
+        $default = Credentials::METHOD_SECRET;
 
         return $this->makeSetting('authMethod', $default, FieldConfig::TYPE_STRING, function (FieldConfig $field) {
             $field->title = Piwik::translate('Missivus_SettingAuthMethodTitle');
             $field->uiControl = FieldConfig::UI_CONTROL_SINGLE_SELECT;
             $field->availableValues = array(
-                Credentials::METHOD_CERTIFICATE => Piwik::translate('Missivus_AuthMethodCertificate'),
                 Credentials::METHOD_SECRET => Piwik::translate('Missivus_AuthMethodSecret'),
+                Credentials::METHOD_CERTIFICATE => Piwik::translate('Missivus_AuthMethodCertificate'),
             );
             $field->description = Piwik::translate('Missivus_SettingAuthMethodDescription');
             $this->applyOverride($field, MissivusConfig::KEY_AUTH_METHOD);

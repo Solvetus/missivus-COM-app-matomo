@@ -69,11 +69,27 @@ registrations. Missivus does not use it and you can safely remove it.
 
 ## Part 3 — Give the app a credential
 
-Pick **one** of these. A certificate is recommended and is what Missivus defaults to: it never
-travels in a request body, and secrets in Microsoft Entra now expire after at most two years, which
-means a diary entry and an outage if you forget.
+Pick **one** of these. If you are not sure, pick the client secret: it is two clicks, it is what the
+rest of this guide assumes, and you can move to a certificate later without reinstalling anything.
 
-### Option A — Certificate (recommended)
+### Option A — Client secret (start here)
+
+1. In your app registration choose **Certificates & secrets**.
+2. On the **Client secrets** tab click **+ New client secret**.
+3. Give it a description such as `Matomo`, choose an expiry, then click **Add**.
+4. Copy the **Value** column immediately. **It is shown once and never again.** The *Secret ID*
+   column is not the secret and is not what you need — this trips almost everyone up the first
+   time.
+5. Put the expiry date in a calendar. Mail stops on that day if the secret is not replaced.
+
+That is the credential. Skip to Part 4.
+
+### Option B — Certificate (optional hardening)
+
+A certificate is more secure than a secret: it never travels in a request body, and it can be given
+a longer life without the same exposure. It is worth doing if you are comfortable with `openssl` and
+managing a key file on the server — but nothing in Missivus needs it, and a secret is not a second-
+class option.
 
 Run this on the Matomo server, or anywhere with `openssl` installed:
 
@@ -109,14 +125,8 @@ rm missivus.key missivus.crt      # no longer needed on this machine
 
 Use `www-data` or whichever user your web server runs as.
 
-### Option B — Client secret
-
-1. In your app registration choose **Certificates & secrets**.
-2. On the **Client secrets** tab click **+ New client secret**.
-3. Give it a description and an expiry, then click **Add**.
-4. Copy the **Value** column immediately. **It is shown once and never again.** The "Secret ID"
-   column is not the secret and is not what you need.
-5. Put the expiry date in a calendar.
+If you choose this option, set **Authentication method** to **Certificate** in Part 7 and give the
+path to the PEM instead of a secret.
 
 ---
 
@@ -186,13 +196,28 @@ Disconnect-ExchangeOnline
 
 ## Part 6 — Install the plugin
 
-Copy the plugin so it lands at `plugins/Missivus` inside your Matomo installation, then activate it:
+Copy the plugin so it lands at `plugins/Missivus` inside your Matomo installation, then activate it.
+
+From the release zip:
+
+```bash
+cd /path/to/matomo/plugins
+unzip /path/to/Missivus-0.1.0.zip          # creates plugins/Missivus/
+chown -R www-data:www-data Missivus
+cd ..
+./console plugin:activate Missivus
+```
+
+Or straight from git:
 
 ```bash
 cd /path/to/matomo
 git clone https://github.com/Solvetus/missivus-COM-app-matomo.git plugins/Missivus
 ./console plugin:activate Missivus
 ```
+
+You can also upload the zip through **Administration → Plugins → Install a new plugin → Upload**,
+and activate it from that same page, if you would rather not use a shell at all.
 
 Run `./console` as your web server user (`sudo -u www-data ./console …`) so file ownership stays
 consistent.
@@ -219,30 +244,38 @@ regardless. Setting it here means Matomo and Microsoft agree, and no warnings ap
 
 ### Enter the credentials
 
-You have two choices. **Either** is fine; the config file is usually better on a server you deploy
-by pulling code, because the settings then travel with your configuration rather than living in the
-database.
+Go to **Administration → System → General settings** in Matomo and scroll to **Missivus**. Fill in:
 
-**Option 1 — the settings page.** In Matomo go to **Administration → System → General settings** and
-scroll to **Missivus**. Fill in Tenant ID, Client ID, authentication method, the certificate path or
-client secret, and the sender mailbox. Click **Save**.
+| Field | Value |
+| --- | --- |
+| Directory (tenant) ID | from Part 1 |
+| Application (client) ID | from Part 1 |
+| Authentication method | **Client secret** (or **Certificate** if you chose Option B) |
+| Client secret | the **Value** you copied in Part 3 |
+| Sender mailbox | `noreply@example.com` from Part 4 |
 
-**Option 2 — the config file.** Add a `[Missivus]` section to `config/config.ini.php`:
+Click **Save**. That is all the configuration Missivus needs — **you do not have to touch
+`config.ini.php` for any of it.**
+
+#### Optional: keep credentials in a file instead
+
+If you would rather your credentials lived with your configuration than in Matomo's database — which
+suits a server you deploy by pulling code — add a `[Missivus]` section to `config/config.ini.php`:
 
 ```ini
 [Missivus]
 tenant_id = "00000000-0000-0000-0000-000000000000"
 client_id = "00000000-0000-0000-0000-000000000000"
-auth_method = "certificate"
-certificate_path = "/etc/matomo/secrets/missivus.pem"
+auth_method = "secret"
+client_secret = "the Value you copied in Part 3"
 sender_mailbox = "noreply@example.com"
 ```
 
-For a client secret instead, use:
+For a certificate instead, replace the last two credential lines with:
 
 ```ini
-auth_method = "secret"
-client_secret = "the Value you copied in Part 3"
+auth_method = "certificate"
+certificate_path = "/etc/matomo/secrets/missivus.pem"
 ```
 
 Anything set here appears in the settings page marked *set in config file*, cannot be edited from

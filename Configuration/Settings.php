@@ -180,7 +180,7 @@ class Settings implements ConfigurationInterface
      */
     public function getCredentials()
     {
-        $method = $this->resolve(self::KEY_AUTH_METHOD, 'authMethod', Credentials::METHOD_CERTIFICATE);
+        $method = $this->resolve(self::KEY_AUTH_METHOD, 'authMethod', Credentials::METHOD_SECRET);
 
         $credentials = new Credentials(
             $this->resolve(self::KEY_TENANT_ID, 'tenantId'),

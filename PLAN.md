@@ -146,7 +146,7 @@ Missivus restores the stock transport with zero cleanup.
 | `enabled` | bool / checkbox | DB | Master switch. Default **off** — installing the plugin must not break mail before it is configured. |
 | `tenantId` | string / text | DB or `[Missivus] tenant_id` | Directory (tenant) ID. |
 | `clientId` | string / text | DB or `[Missivus] client_id` | Application (client) ID. |
-| `authMethod` | string / select | DB or `[Missivus] auth_method` | `certificate` (recommended) or `secret`. |
+| `authMethod` | string / select | DB or `[Missivus] auth_method` | `secret` (default, and the documented first route) or `certificate` (optional hardening). |
 | `clientSecret` | string / **password** | DB or `[Missivus] client_secret` | Write-only. Never rendered, never logged. |
 | `certificatePath` | string / text | DB or `[Missivus] certificate_path` | Absolute path to a PEM holding the private key **and** the certificate. |
 | `certificatePassphrase` | string / **password** | DB or `[Missivus] certificate_passphrase` | Optional. Write-only. |
@@ -605,7 +605,7 @@ Each constraint in `docs/BRIEF.md`, checked against this plan.
 | GPLv3 | `LICENSE`, headers on every file |
 | Own Entra app + own application access policy | INSTALL.md §Entra, §Exchange; never reuses the worker's registration |
 | Client credentials, token cached & refreshed, `POST /users/{sender}/sendMail` | §5, §6 |
-| Secret **and** certificate; certificate recommended | §5.1, §5.2; README + INSTALL recommend certificate |
+| Secret **and** certificate | §5.1, §5.2. Note: the owner later reversed the brief's "recommend certificate" line — the client secret is now the documented primary route and the UI default, with certificates presented as optional hardening. Both paths remain fully implemented and tested. |
 | Application access policy documented as first-class | INSTALL.md gives it its own numbered step with the exact `New-ApplicationAccessPolicy` call |
 | Settings: tenant, client, secret/cert, sender, save-to-Sent, test button, clear status | §4.1, §9 |
 | Secrets write-only, never logged | §4.2 (`password` control, `transform` guard, `Credentials` redaction, log redaction) |
