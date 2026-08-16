@@ -24,7 +24,9 @@ This is the identity Matomo will use. It is not a user and has no password anyon
 2. In the left-hand menu choose **Applications → App registrations**.
 3. Click **+ New registration**.
 4. Fill in the form:
-   - **Name**: `Missivus — Matomo mail` (only you will see this)
+   - **Name**: `missivus-matomo-<your Matomo hostname>` — for example
+     `missivus-matomo-analytics.example.com`. Only administrators see this, and naming it after the
+     tool and the host keeps it straight once your tenant holds several registrations.
    - **Supported account types**: **Accounts in this organizational directory only (Single tenant)**
    - **Redirect URI**: leave completely empty. Missivus never redirects a browser anywhere, and an
      empty value here is part of why this setup cannot be hijacked.
@@ -76,7 +78,11 @@ rest of this guide assumes, and you can move to a certificate later without rein
 
 1. In your app registration choose **Certificates & secrets**.
 2. On the **Client secrets** tab click **+ New client secret**.
-3. Give it a description such as `Matomo`, choose an expiry, then click **Add**.
+3. Give it a description following the pattern `missivus-matomo-<your Matomo hostname>` —
+   for example `missivus-matomo-analytics.example.com` — then choose an expiry and click
+   **Add**. A tenant accumulates app registrations and secrets quickly, and a name that says
+   which tool and which host it belongs to is the difference between confidently rotating a
+   secret and being afraid to touch it.
 4. Copy the **Value** column immediately. **It is shown once and never again.** The *Secret ID*
    column is not the secret and is not what you need — this trips almost everyone up the first
    time.
@@ -135,13 +141,30 @@ path to the PEM instead of a secret.
 A shared mailbox needs no licence, which is the point: Matomo gets a real, monitorable mailbox for
 free.
 
+Make it a **company-wide no-reply address rather than a Matomo-specific one** — `noreply@example.com`
+with the display name set to your company name, not `matomo@` or `Matomo Analytics`. Recipients see
+the display name, and "Example Ltd" reads better in an inbox than the name of your analytics
+software. It also means the next tool that needs to send email can reuse this same mailbox: each
+tool gets **its own Entra app registration**, scoped to this mailbox by the same kind of application
+access policy, so their credentials stay completely separate while the address your customers see
+stays consistent.
+
 1. Go to <https://admin.microsoft.com>.
 2. Choose **Teams & groups → Shared mailboxes**.
 3. Click **+ Add a shared mailbox**.
-4. Name it something like `Matomo Analytics`, with the address `noreply@example.com`.
+4. Set the name to your company name — for example `Example Ltd` — with the address
+   `noreply@example.com`.
 5. Click **Save changes**. Give it a few minutes to appear everywhere.
 
 Do not add any members. Nobody needs to sign into it.
+
+Two optional bits of hardening while you are here. Both are worth doing and **neither changes
+anything for Missivus**, which talks to Graph and needs none of these protocols:
+
+- **Mailbox → Email apps**: switch off Outlook desktop (MAPI), Exchange web services, ActiveSync,
+  IMAP, POP3 and Outlook on the web. That closes every sign-in route into the mailbox.
+- **Mailbox → General → Hide from address list**: turn it on, so a no-reply address does not clutter
+  colleagues' address pickers or invite replies.
 
 ---
 
@@ -160,7 +183,9 @@ Import-Module ExchangeOnlineManagement
 Connect-ExchangeOnline -UserPrincipalName you@example.com
 ```
 
-Create a mail-enabled security group holding just the shared mailbox, then scope the app to it:
+Create a mail-enabled security group holding just the shared mailbox, then scope the app to it. If
+you later add another tool that sends from the same mailbox, reuse this group and create a second
+policy for that tool's own app registration:
 
 ```powershell
 New-DistributionGroup -Name "Missivus Mailboxes" `

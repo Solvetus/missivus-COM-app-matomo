@@ -120,8 +120,13 @@ instructions, written for someone who has never used Microsoft Entra, are in
 1. Create an app registration in Microsoft Entra.
 2. Grant it the **Mail.Send** application permission — plus **Mail.ReadWrite** if you send
    attachments over 3 MB — and grant admin consent.
-3. Add a **client secret** (or a certificate, if you would rather — see the guide).
-4. Create the shared mailbox you want Matomo to send from.
+3. Add a **client secret** (or a certificate, if you would rather — see the guide). Name it
+   `missivus-matomo-<your Matomo hostname>`, so it stays identifiable among the other app
+   registrations in your tenant.
+4. Create the shared mailbox you want Matomo to send from. Make it a company-wide no-reply address
+   — `noreply@yourcompany.com`, display name your company name — rather than a Matomo-specific one.
+   Other tools can send from the same mailbox later: each gets its own app registration scoped by
+   the same kind of policy, so credentials stay separate while the sender address stays consistent.
 5. Create an **application access policy** in Exchange Online scoping the app to that one mailbox.
 
 ## Configuration
