@@ -55,5 +55,6 @@ class Missivus extends \Piwik\Plugin
         $translationKeys[] = 'Missivus_TestEmailSent';
         $translationKeys[] = 'Missivus_TestEmailFailed';
         $translationKeys[] = 'Missivus_TestEmailRecipientLabel';
+        $translationKeys[] = 'Missivus_TestEmailNotReady';
     }
 }

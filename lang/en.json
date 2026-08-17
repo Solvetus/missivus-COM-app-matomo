@@ -37,7 +37,15 @@
         "SettingFallbackDescription": "If Microsoft Graph fails, try again using Matomo's configured SMTP or PHP mail settings. Off by default: a failure you can see is better than an email that quietly goes nowhere. The failure is written to the log either way.",
 
         "SettingTestEmailTitle": "Send a test email",
-        "SettingTestEmailDescription": "Save your settings first, then send a test email to check the whole path end to end. The exact error from Microsoft is shown if it fails.",
+        "SettingTestEmailDescription": "The test uses the settings that are saved, not what is currently on screen. Fill everything in, click Save, then send a test email to check the whole path end to end. The exact error from Microsoft is shown if it fails.",
+
+        "ValidationTenantId": "This does not look like a Directory (tenant) ID. Paste the value from your app registration's Overview page — either the ID itself, like 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d, or your tenant domain, like yourcompany.onmicrosoft.com.",
+        "ValidationClientId": "This does not look like an Application (client) ID. Paste the value from your app registration's Overview page — it looks like 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d.",
+        "ValidationSenderMailbox": "This is not a valid email address. Enter the shared mailbox every email will be sent from, for example noreply@example.com.",
+        "ValidationCertificatePath": "Enter the full path to the certificate file, starting from the root of the server — for example /etc/matomo/missivus.pem.",
+        "ValidationCertificatePathUnreadable": "There is no readable file at %1$s. Check the path, and that the file is readable by the user the web server runs as.",
+        "ValidationClientSecret": "That secret contains a space, a line break or a control character. Copy the secret Value from Microsoft Entra again, without any surrounding text.",
+        "ValidationCertificatePassphrase": "That passphrase contains a space, a line break or a control character.",
 
         "SetInConfigFile": "set in config file",
         "SetInConfigFileDescription": "This value comes from the [Missivus] section of config.ini.php (or the MISSIVUS_%1$s environment variable) and cannot be changed here. Edit that file to change it.",
@@ -50,6 +58,9 @@
         "TestEmailSubject": "Missivus test email from Matomo",
         "TestEmailBody": "This is a test email sent by the Missivus plugin through the Microsoft Graph API, from the mailbox %1$s. If you are reading it, Matomo can send email.",
         "TestEmailSentTo": "Test email sent to %1$s. Check that it arrives — Microsoft accepted it, which is not quite the same as delivering it.",
-        "TestEmailNoRecipient": "No recipient. Enter an address, or add one to your own Matomo user account."
+        "TestEmailNoRecipient": "No recipient. Enter an address, or add one to your own Matomo user account.",
+        "TestEmailInvalidRecipient": "That is not a valid email address.",
+        "TestEmailNotReady": "Fill in the settings above, tick “Send email through Microsoft Graph”, and click Save. The test email is sent with the saved settings, so this button stays disabled until they are complete.",
+        "TestEmailRequiresPost": "Missivus.sendTestEmail must be called with an HTTP POST request."
     }
 }

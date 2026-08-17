@@ -9,6 +9,7 @@
 
 namespace Piwik\Plugins\Missivus;
 
+use Piwik\Common;
 use Piwik\Container\StaticContainer;
 use Piwik\Mail;
 use Piwik\Piwik;
@@ -38,6 +39,7 @@ class API extends \Piwik\Plugin\API
     public function sendTestEmail($to = false)
     {
         Piwik::checkUserHasSuperUserAccess();
+        $this->checkRequestIsPost();
 
         $recipient = $this->resolveRecipient($to);
 
@@ -45,6 +47,14 @@ class API extends \Piwik\Plugin\API
             return array(
                 'success' => false,
                 'message' => Piwik::translate('Missivus_TestEmailNoRecipient'),
+            );
+        }
+
+        if (!Piwik::isValidEmailString($recipient)) {
+            // Refused before a Mail object exists, so nothing malformed ever reaches Graph.
+            return array(
+                'success' => false,
+                'message' => Piwik::translate('Missivus_TestEmailInvalidRecipient'),
             );
         }
 
@@ -81,6 +91,60 @@ class API extends \Piwik\Plugin\API
             'success' => true,
             'message' => Piwik::translate('Missivus_TestEmailSentTo', array($recipient)),
         );
+    }
+
+    /**
+     * Whether the settings that are *saved* are enough to send a test email.
+     *
+     * The button asks this on load and again after a save, because the test sends with the stored
+     * configuration — not with whatever is currently typed into the form. Before this existed the
+     * usual first experience of the plugin was filling the form in, clicking "Send test email", and
+     * being told Missivus was switched off.
+     *
+     * @return array ['ready' => bool, 'reason' => string]
+     */
+    public function getTestEmailStatus()
+    {
+        Piwik::checkUserHasSuperUserAccess();
+
+        /** @var ConfigurationInterface $config */
+        $config = StaticContainer::get(ConfigurationInterface::class);
+
+        $problem = $config->getConfigurationProblem();
+
+        if ($problem === '') {
+            return array('ready' => true, 'reason' => '');
+        }
+
+        return array(
+            'ready' => false,
+            'reason' => Piwik::translate('Missivus_TestEmailNotReady') . ' (' . $problem . ')',
+        );
+    }
+
+    /**
+     * Refuse a GET.
+     *
+     * Matomo already makes a cross-site call impossible: for `module=API` requests it does not
+     * authenticate from the session cookie at all (FrontController::makeSessionAuthenticator), so a
+     * caller must present the token_auth that only a page inside Matomo can read. This adds the
+     * cheap second lock — sending mail is a state change, and a state change should not be reachable
+     * by a URL that a browser can be talked into visiting.
+     *
+     * @return void
+     * @throws \Exception
+     */
+    private function checkRequestIsPost()
+    {
+        if (Common::isPhpCliMode()) {
+            return;
+        }
+
+        $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string) $_SERVER['REQUEST_METHOD']) : '';
+
+        if ($method !== 'POST') {
+            throw new \Exception(Piwik::translate('Missivus_TestEmailRequiresPost'));
+        }
     }
 
     /**

@@ -9,22 +9,18 @@
         gap: 12px;
     }
 
+    // Colour, borders and contrast come from Matomo's own .notification / .notification-success /
+    // .notification-error / .notification-info classes, which are the classes core uses for every
+    // other message in the admin UI. Hand-rolled pastel backgrounds were the bug: they set a
+    // background but not a foreground, so in the dark theme the inherited light text sat on a light
+    // panel and the Graph error — the one thing worth reading — was invisible.
+    //
+    // All that is left here is what those classes have no opinion about: an error body from Graph
+    // is long, unwrapped JSON that would otherwise stretch the settings page sideways.
     .missivusTestEmailResult {
         margin-top: 12px;
-        padding: 10px 12px;
-        border-radius: 4px;
-        // Graph error bodies are long and often contain no spaces.
+        margin-bottom: 0;
         word-break: break-word;
         white-space: pre-wrap;
-    }
-
-    .missivusTestEmailResult.success {
-        background: #e8f5e9;
-        border: 1px solid #a5d6a7;
-    }
-
-    .missivusTestEmailResult.failure {
-        background: #fdecea;
-        border: 1px solid #f5c6cb;
     }
 }
