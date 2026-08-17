@@ -36,6 +36,7 @@ contents=(
   plugin.json
   LICENSE
   README.md
+  CHANGELOG.md
   Missivus.php
   API.php
   SystemSettings.php
@@ -48,6 +49,7 @@ contents=(
   stylesheets
   vue
   docs/INSTALL.md
+  docs/SECURITY.md
 )
 
 # What deliberately does not ship: tests/, tools/, PLAN.md, docs/BRIEF.md, .git, .gitignore, dist/.

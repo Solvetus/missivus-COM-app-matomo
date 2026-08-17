@@ -1,6 +1,6 @@
 {
     "name": "Missivus",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Send all Matomo email through the Microsoft Graph API using application permissions and a shared mailbox. No user login, no delegated OAuth, no SMTP.",
     "theme": false,
     "keywords": ["email", "mail", "microsoft", "graph", "office365", "microsoft365", "exchange", "smtp", "entra"],
