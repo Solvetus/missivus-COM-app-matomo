@@ -198,7 +198,7 @@ Precedence, highest first: **env var → `config.ini.php [Missivus]` → SystemS
 
 `TokenProvider::getToken()`:
 
-1. `TokenCacheInterface::get($cacheKey)` where `$cacheKey = 'missivus.token.' . sha1(tenantId . '|' . clientId . '|' . authMethod)`. Hit → return. The token is cached with a TTL of `expires_in - 300` seconds, so it is refreshed five minutes before Microsoft expires it (same margin as `solvetus-COM-www/src/worker.js`).
+1. `TokenCacheInterface::get($cacheKey)` where `$cacheKey = 'missivus.token.' . sha1(tenantId . '|' . clientId . '|' . authMethod)`. Hit → return. The token is cached with a TTL of `expires_in - 300` seconds, so it is refreshed five minutes before Microsoft expires it (the same margin as our existing Graph relay worker).
 2. Miss → POST `{loginBaseUrl}/{tenantId}/oauth2/v2.0/token`, `Content-Type: application/x-www-form-urlencoded`.
 3. Non-200, or a body with no `access_token` → throw `GraphException`. The Entra error body is included **after** redaction (any `client_secret`/`client_assertion`/`access_token` substring is replaced with `***`).
 4. Cache, return.
@@ -261,7 +261,7 @@ Microsoft's current reference says `alg` *should* be PS256. RS256 (plain `openss
 accepted by Entra and is what most SDKs sent historically. Because this integration cannot be
 tested against a real tenant inside this repo, a config-only escape hatch exists:
 `[Missivus] certificate_algorithm = "RS256"` switches to RS256 with an `x5t` (base64url SHA-1)
-header. It is documented in INSTALL.md as *"only if Entra rejects the assertion"*. There is no UI
+header. It is documented in docs/index.md as *"only if Entra rejects the assertion"*. There is no UI
 for it — it is deliberately not a normal knob.
 
 The PEM is read from `certificatePath` with `openssl_pkey_get_private()` (passphrase optional) and
@@ -303,7 +303,7 @@ App-only Graph sends as `/users/{sender}` and Exchange rejects a mismatched `fro
   reply still reaches a human instead of bouncing.
 * `getFromName()` is preserved as the display name, which Exchange does honour.
 
-INSTALL.md instructs setting `[General] noreply_email_address` to the shared mailbox so this warning
+docs/index.md instructs setting `[General] noreply_email_address` to the shared mailbox so this warning
 never fires in normal operation.
 
 ### 6.3 Failure policy
@@ -537,19 +537,19 @@ Item 4 is the one to check first on any Matomo upgrade.
 
 ## 11. Deployment path
 
-Target: `analytics.solvetus.com`, Matomo **5.12.0**, Docker under Dokploy on **slvts-core-01**
-(Ubuntu 24.04), reachable over the NetBird mesh. Marketplace install is unavailable until published,
-so this is a bind-mount deploy.
+Target: a containerised Matomo **5.12.0** on Linux. Marketplace install is unavailable until
+published, so this is a bind-mount deploy. The instance's host name, orchestration and network
+belong in the operator's runbook, not here.
 
 **Not performed in this task** — the brief scopes deployment out. Recorded here so it is one
 copy-paste when it is in scope.
 
-1. **Bind-mount.** In the Dokploy compose for the Matomo service, add
-   `- /opt/solvetus/matomo/plugins/Missivus:/var/www/html/plugins/Missivus:ro`.
+1. **Bind-mount.** In the compose file for the Matomo service, add
+   `- <host plugins dir>/Missivus:/var/www/html/plugins/Missivus:ro`.
    Read-only: the plugin never writes to its own directory.
-2. **Place the code.** `git clone` (or `git pull`) the repo to
-   `/opt/solvetus/matomo/plugins/Missivus` on slvts-core-01. Tagged release, not `main`.
-3. **Certificate.** Put the PEM outside the plugin tree — `/opt/solvetus/matomo/secrets/missivus.pem`,
+2. **Place the code.** `git clone` (or `git pull`) the repo into that host directory on the server.
+   Tagged release, not `main`.
+3. **Certificate.** Put the PEM outside the plugin tree — for example `<host secrets dir>/missivus.pem`,
    mounted read-only, owned `root:www-data`, mode `0640`. Never inside a bind-mount that a plugin
    update would overwrite.
 4. **Config.** Add to `config/config.ini.php` (which is already a persistent volume):
@@ -559,19 +559,19 @@ copy-paste when it is in scope.
    client_id = "…"
    auth_method = "certificate"
    certificate_path = "/var/www/html/secrets/missivus.pem"
-   sender_mailbox = "noreply@solvetus.com"
+   sender_mailbox = "noreply@example.com"
 
    [General]
-   noreply_email_address = "noreply@solvetus.com"
+   noreply_email_address = "noreply@example.com"
    emails_enabled = 1
    ```
    Values are placed by the owner. This agent never sees or prints them.
 5. **Activate.** `docker compose exec -u www-data matomo ./console plugin:activate Missivus`
 6. **Verify.** Administration → System → General settings → Missivus → **Send test email**. Then a
    real password-reset email as a second, independent check.
-7. **Record.** Config (paths and IDs, never secrets) into
-   `Solvetus/Reference/Matomo Server Runbook.md`, and an "implemented" line into
-   `rjdsm/Ventures/Missivus/Missivus.md`.
+7. **Record.** Config (paths and IDs, never secrets) into the operator's internal Matomo server
+   runbook, and an "implemented" line into the internal venture note. Server specifics live there,
+   not in this repository.
 
 Rollback is `./console plugin:deactivate Missivus` — §3 makes that restore the stock transport with
 no other change.
@@ -586,7 +586,7 @@ no other change.
    need `Mail.ReadWrite`; `Mail.Send` alone does not cover them. Both are consistent with the brief's
    security model — the Exchange application access policy scopes **every** permission the app holds
    to the single shared mailbox, so `Mail.ReadWrite` grants nothing outside it. The plugin is built
-   for both permissions, INSTALL.md asks for both, and a missing `Mail.ReadWrite` surfaces as a loud,
+   for both permissions, docs/index.md asks for both, and a missing `Mail.ReadWrite` surfaces as a loud,
    named error rather than a silent failure. Flagging it because it changes what gets consented to.
 2. **`certificate_algorithm`.** PS256 is what Microsoft's current reference specifies and is the
    default. The RS256 escape hatch exists because this repo cannot exercise a real Entra tenant. If
@@ -605,22 +605,22 @@ Each constraint in `docs/BRIEF.md`, checked against this plan.
 | Brief constraint | Where satisfied |
 | --- | --- |
 | GPLv3 | `LICENSE`, headers on every file |
-| Own Entra app + own application access policy | INSTALL.md §Entra, §Exchange; never reuses the worker's registration |
+| Own Entra app + own application access policy | docs/index.md §Entra, §Exchange; never reuses the worker's registration |
 | Client credentials, token cached & refreshed, `POST /users/{sender}/sendMail` | §5, §6 |
 | Secret **and** certificate | §5.1, §5.2. Note: the owner later reversed the brief's "recommend certificate" line — the client secret is now the documented primary route and the UI default, with certificates presented as optional hardening. Both paths remain fully implemented and tested. |
-| Application access policy documented as first-class | INSTALL.md gives it its own numbered step with the exact `New-ApplicationAccessPolicy` call |
+| Application access policy documented as first-class | docs/index.md gives it its own numbered step with the exact `New-ApplicationAccessPolicy` call |
 | Settings: tenant, client, secret/cert, sender, save-to-Sent, test button, clear status | §4.1, §9 |
 | Secrets write-only, never logged | §4.2 (`password` control, `transform` guard, `Credentials` redaction, log redaction) |
 | HTML + plaintext, attachments, reply-to, CC/BCC, multiple recipients — or fail loudly | §6.1 (with the CC note), §6.3 |
 | Fallback: error log, optional fallback, never swallowed | §6.3 |
 | Fallback default OFF | §4.1 |
 | Zero third-party runtime deps | §2.1; the standalone test runner is dev-only and also dependency-free |
-| Unit tests vs mocked Graph + one documented E2E | §8 — 60 tests passing; E2E is §8.4 and INSTALL.md Part 8 |
+| Unit tests vs mocked Graph + one documented E2E | §8 — 60 tests passing; E2E is §8.4 and docs/index.md Part 8 |
 | Transport vendorable unchanged by WordPress | §2.1 — namespace `Solvetus\Missivus`, no Matomo symbol inside `libs/` |
 | Inline ceiling ~3 MB verified; above it draft→uploadSession→send; both paths tested | §7 (3 MB confirmed); `GraphMailerTest` covers both paths, including the exact ordered call sequence |
 | Scheduled-report PDFs never fail on size | §7.2 — automatic, total-aware, unconfigurable |
 | Force From = sender, warn on mismatch | §6.2 |
-| Docs instruct `[General] noreply_email_address` | §6.2, §11 step 4, INSTALL.md |
+| Docs instruct `[General] noreply_email_address` | §6.2, §11 step 4, docs/index.md |
 | Secret/cert path overridable via `[Missivus]`, file wins, UI shows "set in config file", no DB write | §4.2 |
 | Env vars if the config layer allows | §4.3 |
 | `Missivus.sendTestEmail` superuser + token_auth, Vue component, Graph error body on failure | §9 |
@@ -628,9 +628,9 @@ Each constraint in `docs/BRIEF.md`, checked against this plan.
 | PHP floor = Matomo 5.x minimum, verified | §8.3 — 7.2.5, verified in composer.json and enforced by a 7.2 container lint |
 | Latest versions, verified empirically | Matomo 5.12.0 stable / 5.14.0-alpha dev; Graph limits from current MS docs; all "verified" notes above |
 | DI seam of PR #14041, no monkey-patching | §3 |
-| Deployment: Dokploy bind-mount, `plugin:activate` | §11 |
+| Deployment: container bind-mount, `plugin:activate` | §11 |
 | Small logical commits on main, push when tests pass | Commit sequence below |
-| Marketplace-ready README, INSTALL for a non-expert, one Solvetus support line | `README.md`, `docs/INSTALL.md` |
+| Marketplace-ready README, INSTALL for a non-expert, one Solvetus support line | `README.md`, `docs/index.md` |
 | Translations EN first, keys ready for PT/FR/ES/IT | `lang/en.json`, all UI strings keyed |
 | Never print or commit secrets | `.gitignore` covers `*.pem`, `*.key`, `.env`; no fixture holds a real credential |
 

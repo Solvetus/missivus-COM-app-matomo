@@ -1,4 +1,4 @@
-# Never commit credentials. See docs/INSTALL.md — secrets live in config.ini.php
+# Never commit credentials. See docs/index.md — secrets live in config.ini.php
 # or outside the plugin tree entirely.
 *.pem
 *.key

@@ -4,6 +4,41 @@ All notable changes to Missivus for Matomo are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] — 2026-08-17
+
+Marketplace readiness and public-repository hygiene. No functional change to the plugin itself.
+
+### Changed
+
+- `plugin.json`: the `license` string is now `GPL-3.0+`, which is the spelling the Marketplace
+  accepts (`GPL-3.0-or-later` is correct SPDX but is not on their list); added
+  `"category": "integration"`, a `docs` support link, and an `archive.exclude` list so the
+  Marketplace-built zip leaves out `/dist`, `/tools`, `/PLAN.md` and `/docs/BRIEF.md`.
+- `README.md` is restructured around a `## Description` section, because the Marketplace renders
+  everything between that heading and the next `##` as the plugin's page: what it does, why
+  application permissions beat a delegated login, what you need, and where the guide is.
+- The installation guide moved from `docs/INSTALL.md` to **`docs/index.md`**, which is the path the
+  Marketplace turns into the plugin page's Documentation tab. Every internal reference was updated.
+
+### Added
+
+- **`docs/faq.md`** — twelve real questions, and the path they came from: mailbox licensing, why not
+  SMTP, secret versus certificate, rotating a secret, attachments over 3 MB, why `Mail.ReadWrite`,
+  why the access policy is not optional, the greyed-out test button, the Docker upload flag, what
+  happens if you install and do nothing, the Microsoft error codes, and where to report a problem.
+  It becomes the FAQ tab.
+- **`screenshots/README.md`** — the exact captures the Marketplace page needs, with target
+  filenames (the file name becomes the caption), the 880×480 `_cover.png` rule, and a
+  before-committing checklist, since a screenshot of a filled-in settings page is a screenshot of
+  someone's tenant.
+
+### Removed
+
+- Deployment topology is out of the public tree: host names, orchestration, the private network, and
+  local vault paths are gone from `docs/BRIEF.md` and `PLAN.md`, replaced with generic wording. That
+  detail belongs in the operator's own runbook. (Note that it remains in the git history of releases
+  before this one.)
+
 ## [0.1.1] — 2026-08-17
 
 First round of fixes after the first live deployment, plus a security review
@@ -42,7 +77,7 @@ First round of fixes after the first live deployment, plus a security review
 
 - `Missivus.getTestEmailStatus` — superuser-only; reports whether the saved settings can send, and
   why not when they cannot. This is what gates the button.
-- `docs/INSTALL.md` Part 6 gains **Upload via the Matomo UI (Docker or locked-down installs)**: why
+- `docs/index.md` Part 6 gains **Upload via the Matomo UI (Docker or locked-down installs)**: why
   `enable_plugin_upload` is off by default, the console command to turn it on (with the
   `docker exec` form), the upload and activate steps, and the command to close it again afterwards.
 - `docs/SECURITY.md` and this changelog.
@@ -68,5 +103,6 @@ Initial release.
   test-email button.
 - Optional fallback to Matomo's own transport, off by default; nothing is ever swallowed.
 
+[0.1.2]: https://github.com/Solvetus/missivus-COM-app-matomo/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Solvetus/missivus-COM-app-matomo/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Solvetus/missivus-COM-app-matomo/releases/tag/v0.1.0

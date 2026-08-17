@@ -48,11 +48,14 @@ contents=(
   libs
   stylesheets
   vue
-  docs/INSTALL.md
+  docs/index.md
+  docs/faq.md
   docs/SECURITY.md
 )
 
-# What deliberately does not ship: tests/, tools/, PLAN.md, docs/BRIEF.md, .git, .gitignore, dist/.
+# What deliberately does not ship: tests/, tools/, screenshots/, PLAN.md, docs/BRIEF.md, .git,
+# .gitignore, dist/. plugin.json's archive.exclude tells the Marketplace to drop the same things
+# from the zip it builds itself.
 
 staging="$(mktemp -d)"
 trap 'rm -rf "$staging"' EXIT

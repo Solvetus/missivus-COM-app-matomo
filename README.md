@@ -1,25 +1,26 @@
 # Missivus for Matomo
 
-**Send Matomo's email through Microsoft 365 without SMTP, without a user account, and without a
+## Description
+
+**Send Matomo's email through Microsoft 365 — without SMTP, without a user account, and without a
 paid add-on.**
 
-Matomo has no email API — it sends only through PHPMailer, over SMTP or PHP's `mail()`. Microsoft
-has retired basic-authentication SMTP for Microsoft 365, and Matomo's own FAQ now treats the
-Microsoft 365 SMTP path as unsupported. The result is a Matomo that quietly sends nothing: no
-password resets, no scheduled reports, no alerts.
+Matomo has no email API. It sends only through PHPMailer, over SMTP or PHP's `mail()`. Microsoft has
+retired basic-authentication SMTP for Microsoft 365, and Matomo's own FAQ now treats the Microsoft
+365 SMTP path as unsupported. The result is a Matomo that quietly sends nothing: no password resets,
+no scheduled reports, no alerts.
 
 Missivus replaces Matomo's mail transport with one that posts to the Microsoft Graph API using
 **OAuth2 client credentials** and the **Mail.Send application permission**, sending as one shared
-mailbox you nominate.
+mailbox you nominate. Every email Matomo produces goes out that way — there is nothing to switch
+over report by report.
 
-## Why this and not a delegated-OAuth mailer
+### Application permissions, not a delegated login
 
 The usual Microsoft 365 mailers use *delegated* authentication: a multi-tenant app, a redirect URI,
 and a human who clicks "Connect" so that mail goes out as their account. That is the wrong shape for
-a server. It breaks when the person leaves, when their password changes, and when MFA policy
+a server. It breaks when that person leaves, when their password changes, and when MFA policy
 tightens.
-
-Missivus is the opposite:
 
 | | Delegated mailers | Missivus |
 | --- | --- | --- |
@@ -30,35 +31,47 @@ Missivus is the opposite:
 | Scope | Whatever that person can reach | One mailbox, enforced by Exchange |
 | Cost | Often a paid extension | Free, GPLv3 |
 
-The scoping is the part that makes this safe: an **Exchange application access policy** restricts
-the app registration to the single shared mailbox, so the `Mail.Send` permission cannot touch any
-other mailbox in your tenant. [docs/INSTALL.md](docs/INSTALL.md) treats that step as first-class.
+The scoping is what makes this safe. An **Exchange application access policy** restricts the app
+registration to the single shared mailbox, so the `Mail.Send` permission cannot touch any other
+mailbox in your tenant — and the install guide treats that step as first-class, with a command to
+verify it actually took effect.
 
-## What it does
+### What it does
 
-- Everything `Piwik\Mail` supports: HTML and plaintext, multiple recipients, BCC, Reply-To, and
+- **Everything `Piwik\Mail` supports:** HTML and plaintext, multiple recipients, BCC, Reply-To, and
   attachments — including the PDFs that scheduled reports generate.
 - **Large attachments never fail on size.** Files under 3 MB go inline; anything larger is uploaded
   through a Graph upload session automatically. There is no setting that can get this wrong.
 - **Client secret or certificate.** A client secret is the quickest way in and is the default; a
   certificate is supported as optional hardening.
-- **Secrets stay out of the database if you want them to.** Any value can be supplied from a
-  `[Missivus]` section of `config.ini.php` or from an environment variable, which then wins over the
-  settings UI and is never written to the option table.
+- **Secrets can stay out of the database.** Any value can come from a `[Missivus]` section of
+  `config.ini.php` or from an environment variable, which then wins over the settings UI and is
+  never written to the option table.
 - **Nothing fails silently.** A Graph failure is logged at error level and, unless you explicitly
   turn on the fallback, raised. Nothing is swallowed.
 - **A test-email button** that shows you the exact error Microsoft returned.
 - **No third-party runtime dependencies.** Nothing beyond what Matomo already ships, and nothing to
   `composer install`.
 
-## Requirements
+### What you need
 
 - Matomo 5.0 or later (developed and tested against 5.12.0)
 - PHP 7.2.5 or later — Matomo 5's own floor — with the `openssl` and `json` extensions
-- A Microsoft 365 tenant, and permission to create an app registration and run one Exchange Online
-  PowerShell command
+- A Microsoft 365 tenant, and an administrator who can create an app registration, grant admin
+  consent, and run one Exchange Online PowerShell command
+- A shared mailbox to send from. It needs **no licence**
 
-## Install manually
+### Getting started
+
+Install the plugin, then follow **[the installation guide](docs/index.md)** — it is written for
+someone who has never opened Microsoft Entra, and every click is spelled out. Budget half an hour
+for the Microsoft side. The [FAQ](docs/faq.md) answers the questions that come up most often, and
+[docs/SECURITY.md](docs/SECURITY.md) is the standing security review.
+
+Missivus is free and open source (GPLv3). If you would rather not do the Entra and Exchange setup
+yourself, [Solvetus](https://solvetus.com) offers paid installation and support.
+
+## Install
 
 1. **Upload and unzip.** Put `Missivus-<version>.zip` on your server and unzip it inside Matomo's
    `plugins/` directory, so the plugin ends up at `plugins/Missivus/` with `plugin.json` directly
@@ -67,12 +80,13 @@ other mailbox in your tenant. [docs/INSTALL.md](docs/INSTALL.md) treats that ste
 
    ```bash
    cd /path/to/matomo/plugins
-   unzip Missivus-0.1.1.zip
+   unzip Missivus-0.1.2.zip
    chown -R www-data:www-data Missivus
    ```
 
-   You can also upload the zip through **Administration → Plugins → Install a new plugin → Upload**
-   if your Matomo allows plugin uploads.
+   You can also upload the zip through **Administration → Platform → Plugins → Install a new
+   plugin**, if your Matomo allows plugin uploads —
+   [the guide explains how to enable that safely](docs/index.md#upload-via-the-matomo-ui-docker-or-locked-down-installs).
 
 2. **Activate it.** Either tick it under **Administration → Plugins**, or from the command line:
 
@@ -93,8 +107,9 @@ other mailbox in your tenant. [docs/INSTALL.md](docs/INSTALL.md) treats that ste
    - **Sender mailbox** — the shared mailbox Matomo should send from
    - Tick **Send email through Microsoft Graph**
 
-   Save, then press **Send test email**. If it fails, the exact error Microsoft returned is shown
-   on the page.
+   Click **Save**, then press **Send test email**. The button stays disabled until the saved
+   settings are complete, and tells you what is missing. If the send fails, the exact error
+   Microsoft returned is shown on the page.
 
 That is the whole installation. **You do not need to edit `config.ini.php`.** The
 [`[Missivus]` overrides](#configuration) below are entirely optional — they exist for people who
@@ -114,8 +129,7 @@ Missivus forces it either way — setting it here just keeps a warning out of yo
 ### Getting the Microsoft side ready
 
 The plugin needs an app registration before any of the above will work. Full step-by-step
-instructions, written for someone who has never used Microsoft Entra, are in
-**[docs/INSTALL.md](docs/INSTALL.md)**. In outline:
+instructions are in **[docs/index.md](docs/index.md)**. In outline:
 
 1. Create an app registration in Microsoft Entra.
 2. Grant it the **Mail.Send** application permission — plus **Mail.ReadWrite** if you send
@@ -154,6 +168,14 @@ UI, and is never copied into the database. Each key can also be supplied as an e
 If you use a certificate instead of a secret, swap those two lines for
 `auth_method = "certificate"` and `certificate_path = "/etc/matomo/secrets/missivus.pem"`.
 
+## Security
+
+[docs/SECURITY.md](docs/SECURITY.md) is the standing security review: how secrets are kept out of
+logs, API responses and page source, how the test-email API method is authenticated, and the risks
+that were accepted rather than eliminated, with the reasoning for each.
+
+Found a vulnerability? Email <hello@solvetus.com> rather than opening a public issue.
+
 ## Development
 
 ```
@@ -171,14 +193,6 @@ free of any Matomo symbol: it depends only on `openssl`, `json`, a two-method HT
 three-method cache interface, so the WordPress sibling plugin can vendor it unchanged.
 
 Release history is in [CHANGELOG.md](CHANGELOG.md).
-
-## Security
-
-[docs/SECURITY.md](docs/SECURITY.md) is the standing security review: how secrets are kept out of
-logs, API responses and page source, how the test-email API method is authenticated, and the risks
-that were accepted rather than eliminated, with the reasoning for each.
-
-Found a vulnerability? Email <hello@solvetus.com> rather than opening a public issue.
 
 ## Licence
 

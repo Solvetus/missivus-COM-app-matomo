@@ -220,7 +220,7 @@ next to the data.
 
 Mitigated rather than eliminated: the `[Missivus]` config-file and `MISSIVUS_*` environment tiers
 exist precisely so the secret need never touch the database, they take precedence over it, and when
-one is present the UI refuses to write a secret to the DB at all. `docs/INSTALL.md` documents that
+one is present the UI refuses to write a secret to the DB at all. `docs/index.md` documents that
 route, and certificate authentication — where nothing secret is stored by Matomo at all, only a path
 — remains the strongest option.
 
@@ -230,8 +230,8 @@ route, and certificate authentication — where nothing secret is stored by Mato
 
 * **The Exchange application access policy is what bounds the blast radius.** Every finding above is
   contained by it: even full compromise of the credential only permits sending as one shared mailbox.
-  `docs/INSTALL.md` Part 5 treats it as a required step, with a verification command, for that reason.
-* **`enable_plugin_upload`.** `docs/INSTALL.md` Part 6 now documents the UI upload route and asks the
+  `docs/index.md` Part 5 treats it as a required step, with a verification command, for that reason.
+* **`enable_plugin_upload`.** `docs/index.md` Part 6 now documents the UI upload route and asks the
   operator to switch the setting back off afterwards, because it is a standing remote-code-execution
   path for any superuser session.
 * **Transport security to Microsoft.** All requests go through `Piwik\Http`, so Matomo's CA bundle,

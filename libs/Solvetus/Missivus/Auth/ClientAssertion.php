@@ -22,7 +22,7 @@ use Solvetus\Missivus\Exception\GraphException;
  * verified against the openssl CLI in the test suite, which is an independent implementation.
  *
  * RS256 is retained as a config-only escape hatch: Entra still accepts it and it is what most
- * SDKs sent historically. See docs/INSTALL.md — it is for the case where PS256 is rejected.
+ * SDKs sent historically. See docs/index.md — it is for the case where PS256 is rejected.
  */
 class ClientAssertion
 {

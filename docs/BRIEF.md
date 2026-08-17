@@ -23,9 +23,9 @@ credentials, Mail.Send application permission, an Exchange application access po
 to ONE shared mailbox, no license needed for that mailbox, nothing to click. Free and open
 source; Solvetus sells installation and support.
 
-First deployment: Matomo 5.12.0 at analytics.solvetus.com, which currently has NO mail
-configured — password resets, scheduled reports and alerts silently don't send. Solvetus keeps
-Microsoft 365 long-term.
+First deployment: a Matomo 5.12.0 instance with NO mail configured — password resets, scheduled
+reports and alerts silently don't send — on a tenant that keeps Microsoft 365 long-term. The
+specifics of that instance live in the operator's own runbook, not in this repository.
 
 ## Read first
 
@@ -34,9 +34,9 @@ and the DI seam from matomo-org/matomo PR #14041 ("change mail transport through
 intended extension point; use it, don't monkey-patch. The Matomo 5 plugin guides: skeleton,
 SystemSettings API, DI config, translations, marketplace requirements.
 
-Also read `/Users/rds/Projects/solvetus-COM-www/src/worker.js` — solvetus.com's contact form
-already relays via Graph from a Cloudflare Worker with the same app model and Mail.Send
-permission. Reuse its auth and error-handling patterns only; do NOT reuse that app registration.
+There is prior art to read in-house: an existing Cloudflare Worker that relays a contact form via
+Graph with the same app model and Mail.Send permission. Reuse its auth and error-handling patterns
+only; do NOT reuse that app registration.
 
 ## Design goals (decided)
 
@@ -80,10 +80,10 @@ permission. Reuse its auth and error-handling patterns only; do NOT reuse that a
   tiny interface (Matomo: `Piwik\Cache` or Option table).
 - Fallback: default OFF. When ON and Graph fails, delegate to the original transport and log at
   error level either way.
-- Deployment target: analytics.solvetus.com runs in Docker under Dokploy on slvts-core-01
-  (Ubuntu 24.04, reachable over the NetBird mesh). Bind-mounted plugins directory preferred;
-  activate via `./console plugin:activate Missivus`. Marketplace install is not available until
-  published.
+- Deployment target: a containerised Matomo behind a reverse proxy on Linux. Bind-mounted plugins
+  directory preferred; activate via `./console plugin:activate Missivus`. Marketplace install is
+  not available until published. Host names, orchestration and network specifics stay in the
+  operator's runbook, out of this repository.
 - PHP floor: match the minimum PHP version Matomo 5.x supports (verify in Matomo's composer.json
   / docs) — no syntax above that floor in the vendorable class.
 - Latest versions always. Verify empirically.
@@ -94,18 +94,17 @@ permission. Reuse its auth and error-handling patterns only; do NOT reuse that a
   values, never commits them.
 - Repo: `Solvetus/missivus-COM-app-matomo` (Solvetus GitHub org). Small logical commits on
   main. Push when tests pass.
-- Docs: marketplace-ready README, `docs/INSTALL.md` with the Azure/Entra and Exchange Online
+- Docs: marketplace-ready README, `docs/index.md` with the Azure/Entra and Exchange Online
   steps written for a non-expert (that guide is also the paid-install playbook), one tasteful
   line pointing to Solvetus for installation and support. Translations EN first, keys ready for
   PT/FR/ES/IT.
-- Vault: after deployment, record our box's config in
-  `/Users/rds/Library/Mobile Documents/iCloud~md~obsidian/Documents/Solvetus/Reference/Matomo Server Runbook.md`
-  and add an "implemented" log line to
-  `/Users/rds/Library/Mobile Documents/iCloud~md~obsidian/Documents/rjdsm/Ventures/Missivus/Missivus.md`.
+- Vault: after deployment, record the instance's configuration in the internal Matomo server
+  runbook and add an "implemented" log line to the internal Missivus venture note. Those notes are
+  the only place server specifics belong — never this repository.
 
 ## Deliverables in this repo
 
 - `PLAN.md` — architecture, DI wiring, settings model, auth flow (secret + certificate),
   attachment strategy, test strategy, deployment path, and the exact list of Matomo internals
   depended on (class + method + Matomo version seen) so upgrades can be checked against it.
-- The plugin, tests, LICENSE, README.md, docs/INSTALL.md, .gitignore.
+- The plugin, tests, LICENSE, README.md, docs/index.md, .gitignore.
