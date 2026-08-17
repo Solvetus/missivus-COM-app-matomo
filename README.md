@@ -67,7 +67,7 @@ other mailbox in your tenant. [docs/INSTALL.md](docs/INSTALL.md) treats that ste
 
    ```bash
    cd /path/to/matomo/plugins
-   unzip Missivus-0.1.0.zip
+   unzip Missivus-0.1.1.zip
    chown -R www-data:www-data Missivus
    ```
 
@@ -169,6 +169,16 @@ version they were verified against.
 The Microsoft Graph transport in [`libs/Solvetus/Missivus/`](libs/Solvetus/Missivus/) is deliberately
 free of any Matomo symbol: it depends only on `openssl`, `json`, a two-method HTTP interface and a
 three-method cache interface, so the WordPress sibling plugin can vendor it unchanged.
+
+Release history is in [CHANGELOG.md](CHANGELOG.md).
+
+## Security
+
+[docs/SECURITY.md](docs/SECURITY.md) is the standing security review: how secrets are kept out of
+logs, API responses and page source, how the test-email API method is authenticated, and the risks
+that were accepted rather than eliminated, with the reasoning for each.
+
+Found a vulnerability? Email <hello@solvetus.com> rather than opening a public issue.
 
 ## Licence
 

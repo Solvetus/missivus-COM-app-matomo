@@ -38,6 +38,7 @@ Dependency-free PHP. Knows nothing about Matomo, WordPress, PSR, or Composer. De
 | `Contract\HttpResponse` | Value object: `status`, `body`, `headers`. |
 | `Contract\TokenCacheInterface` | `get(key)` / `set(key, value, ttlSeconds)` / `delete(key)`. |
 | `Contract\LoggerInterface` | `error()` / `warning()` / `info()`. `NullLogger` by default. |
+| `Endpoint` | Normalises and vets a base URL. Anything but a bare https origin is refused before a request exists, so no override can aim a credential elsewhere. |
 | `Redactor` | The last thing between a credential and a log file. Blanks known secret literals, plus anything token-shaped it has never seen. |
 | `Exception\GraphException` | Carries HTTP status + the Graph error body (already redacted). |
 | `Auth\Credentials` | Immutable tenant/client/secret-or-cert holder. `__toString`/`__debugInfo` neutered so a var_dump or stack trace can never leak. |
@@ -428,11 +429,12 @@ put on the wire.
 | --- | --- |
 | `TokenProviderTest` (9) | the client-credentials grant shape; the token cached so a second send makes no request; the TTL being `expires_in - 300` and refreshing exactly one second past it; a token shorter than the margin used but not cached; the certificate path sending a `client_assertion` with a PS256 / `x5t#S256` header and `aud`/`iss`/`sub`/`jti`/`nbf`/`exp` claims; an Entra rejection surfacing `AADSTS…`; a token response with no `access_token`; an unreachable endpoint reported not swallowed; missing config failing before any request goes out |
 | `ClientAssertionTest` (8) | **the PS256 signature verifying under the `openssl` CLI**; the `x5t#S256` thumbprint equalling SHA-256 of the certificate DER; the RS256 escape hatch producing an `x5t` header and a signature `openssl_verify` accepts; a fresh `jti` per assertion; an injectable clock; a missing certificate naming only the path; a passphrase-protected key working; the wrong passphrase failing **without echoing the passphrase** |
-| `GraphMailerTest` (17) | `POST …/users/{sender}/sendMail` with `Bearer` and `application/json`; HTML vs plaintext body selection; to / cc / bcc / replyTo mapping and multiple recipients; `saveToSentItems`; a small attachment inline in one request; an inline attachment keeping `isInline` + `contentId`; **a 4 MB file taking draft → createUploadSession → two chunked PUTs → send, asserted as an exact ordered URL list**, with correct `Content-Range`, `Content-Length` and **no `Authorization`** on the PUTs; three sub-ceiling files that together blow the budget also taking the draft path; a failed upload naming the orphaned draft id and rethrowing; a draft refusal naming `Mail.ReadWrite`; a 401 refreshing the token and retrying **once**; a second 401 failing; a non-202 carrying the Graph error body; no recipients and an empty sender refused before any request |
+| `GraphMailerTest` (18) | `POST …/users/{sender}/sendMail` with `Bearer` and `application/json`; HTML vs plaintext body selection; to / cc / bcc / replyTo mapping and multiple recipients; `saveToSentItems`; a small attachment inline in one request; an inline attachment keeping `isInline` + `contentId`; **a 4 MB file taking draft → createUploadSession → two chunked PUTs → send, asserted as an exact ordered URL list**, with correct `Content-Range`, `Content-Length` and **no `Authorization`** on the PUTs; three sub-ceiling files that together blow the budget also taking the draft path; a failed upload naming the orphaned draft id and rethrowing; a draft refusal naming `Mail.ReadWrite`; a 401 refreshing the token and retrying **once**; a second 401 failing; a non-202 carrying the Graph error body; no recipients and an empty sender refused before any request; **a transport failure mid-upload surfacing as a `GraphException` with the pre-authenticated upload URL masked out**, so the fallback still applies and the URL never reaches a log |
 | `GraphTransportTest` (10) | `Piwik\Mail` → `Message` mapping including attachments and CIDs; **forced From** overriding a different sender, logging a warning naming both addresses and `noreply_email_address`, and moving the requested address into Reply-To; a case-insensitively matching From producing no warning; an explicit Reply-To never clobbered; **fallback OFF** — logged and rethrown, stock transport untouched; **fallback ON** — stock transport used and the failure still logged at error level; an unconfigured plugin failing loudly with nothing sent; the off switch delegating to Matomo's transport without touching Graph and without logging an error; the test-email path ignoring the fallback even when it is on |
-| `RedactorTest` (8) | a known secret blanked wherever it appears; an `access_token` in a JSON body blanked even though we never held it; form-encoded `client_secret` blanked while harmless fields survive; `Bearer` headers and bare JWTs blanked; oversized bodies truncated; **an Entra error echoing our own secret not leaking it through the exception**; `Credentials` never rendering its secret through `__toString` or `__debugInfo` |
+| `RedactorTest` (9) | a known secret blanked wherever it appears; an `access_token` in a JSON body blanked even though we never held it; form-encoded `client_secret` blanked while harmless fields survive; `Bearer` headers and bare JWTs blanked; oversized bodies truncated; **an Entra error echoing our own secret not leaking it through the exception**; `Credentials` never rendering its secret through `__toString` or `__debugInfo`; a `uploadUrl` blanked, because a pre-authenticated URL is itself a credential |
+| `EndpointTest` (8) | a bare https origin kept and its trailing slash dropped; a port and path surviving; **`http://` refused for both base URLs**, naming the setting; embedded credentials or a query string refused; a non-URL refused; an empty base URL refused; **`TokenProvider` refusing a non-https login host with nothing leaving the process**; `GraphMailer` refusing a non-https Graph host |
 
-**50 tests, all passing.** Every goal-critical behaviour the brief names — send, token refresh,
+**60 tests, all passing.** Every goal-critical behaviour the brief names — send, token refresh,
 secret auth, certificate auth, inline attachments, large attachments, forced From, fallback OFF and
 fallback ON — has at least one test above.
 
@@ -469,7 +471,7 @@ docker run --rm -v "$PWD":/src -w /src php:7.2-cli \
 and the standalone suite is run under the same image. `php -l` on 8.5 is run too, so both ends of
 the supported range are covered.
 
-**Result:** lint clean and all 50 tests passing on both PHP 7.2.34 (the floor) and PHP 8.5.9.
+**Result:** lint clean and all 60 tests passing on both PHP 7.2.34 (the floor) and PHP 8.5.9.
 
 ### 8.4 End-to-end
 
@@ -613,7 +615,7 @@ Each constraint in `docs/BRIEF.md`, checked against this plan.
 | Fallback: error log, optional fallback, never swallowed | §6.3 |
 | Fallback default OFF | §4.1 |
 | Zero third-party runtime deps | §2.1; the standalone test runner is dev-only and also dependency-free |
-| Unit tests vs mocked Graph + one documented E2E | §8 — 50 tests passing; E2E is §8.4 and INSTALL.md Part 8 |
+| Unit tests vs mocked Graph + one documented E2E | §8 — 60 tests passing; E2E is §8.4 and INSTALL.md Part 8 |
 | Transport vendorable unchanged by WordPress | §2.1 — namespace `Solvetus\Missivus`, no Matomo symbol inside `libs/` |
 | Inline ceiling ~3 MB verified; above it draft→uploadSession→send; both paths tested | §7 (3 MB confirmed); `GraphMailerTest` covers both paths, including the exact ordered call sequence |
 | Scheduled-report PDFs never fail on size | §7.2 — automatic, total-aware, unconfigurable |

@@ -291,7 +291,7 @@ From the release zip:
 
 ```bash
 cd /path/to/matomo/plugins
-unzip /path/to/Missivus-0.1.0.zip          # creates plugins/Missivus/
+unzip /path/to/Missivus-0.1.1.zip          # creates plugins/Missivus/
 chown -R www-data:www-data Missivus
 cd ..
 ./console plugin:activate Missivus
@@ -305,11 +305,57 @@ git clone https://github.com/Solvetus/missivus-COM-app-matomo.git plugins/Missiv
 ./console plugin:activate Missivus
 ```
 
-You can also upload the zip through **Administration → Plugins → Install a new plugin → Upload**,
-and activate it from that same page, if you would rather not use a shell at all.
-
 Run `./console` as your web server user (`sudo -u www-data ./console …`) so file ownership stays
 consistent.
+
+### Upload via the Matomo UI (Docker or locked-down installs)
+
+If you have no shell on the machine — or Matomo runs in a container where dropping files into
+`plugins/` is awkward — you can upload the zip through Matomo's own interface instead. It takes one
+temporary setting change.
+
+**Why it is off by default.** `enable_plugin_upload` lets any superuser upload a zip that Matomo
+then unpacks into `plugins/` and executes. That is arbitrary PHP running as your web server user:
+one compromised superuser account, or one careless one, and the whole server is gone. Matomo ships
+it off, and the safest way to use it is to turn it on for the five minutes you need it and turn it
+straight back off. The shell route above avoids the trade-off entirely, which is why it is the
+recommended one.
+
+**Step 1 — turn it on.** From the Matomo directory:
+
+```bash
+./console config:set --section=General --key=enable_plugin_upload --value=1
+```
+
+In Docker, run the same console command inside the container, as the web server user — replace
+`<container>` with your Matomo container's name (`docker ps` will show it):
+
+```bash
+docker exec -u www-data <container> php /var/www/html/console config:set --section=General --key=enable_plugin_upload --value=1
+```
+
+**Step 2 — upload and activate.** In Matomo, go to **Administration (the cog) → Platform → Plugins**
+and click **Install a new plugin** at the top of the list. Choose **Upload a plugin**, pick the
+`Missivus-0.1.1.zip` file, and click **Upload plugin**. Matomo unpacks it into `plugins/Missivus`
+and shows it in the plugin list. Find **Missivus** in that list and click **Activate**.
+
+If the upload page does not appear, Matomo has not picked the setting up yet: reload the page, and
+check the command in step 1 ran against the same installation Matomo is serving.
+
+**Step 3 — turn it back off.** As soon as the plugin is activated, close the door again. This is
+best practice, not optional housekeeping — leaving it open is a standing remote-code-execution path
+for anyone who ever gets a superuser session:
+
+```bash
+./console config:set --section=General --key=enable_plugin_upload --value=0
+```
+
+```bash
+docker exec -u www-data <container> php /var/www/html/console config:set --section=General --key=enable_plugin_upload --value=0
+```
+
+Turning it off does not affect the plugin you just installed. Repeat steps 1–3 when you next need to
+upload an update, or use the shell route.
 
 Activating the plugin on its own changes nothing: Missivus starts switched off, and Matomo keeps
 using whatever mail settings it already had.
@@ -386,6 +432,11 @@ Graph** and click **Save**.
 On the same settings page, enter your own address next to **Send a test email** and click the
 button.
 
+The button is disabled until the **saved** settings are complete and Missivus is switched on, and it
+tells you which of those is missing. The test sends with what is stored, not with what is on screen,
+so if you have just typed something into a field, click **Save** first — the button enables itself a
+moment later, without a page reload.
+
 - **Success** — you will have an email within a minute. Microsoft accepting the message is not
   quite the same as delivering it, so do check it actually arrives.
 - **Failure** — the exact error Microsoft returned is shown on the page. See the table below.
@@ -409,6 +460,7 @@ the real `Piwik\Mail` path rather than the test button.
 | `certificate file is not readable at …` | File permissions | `chown root:www-data` and `chmod 640` the PEM, and check the path |
 | `the private key … could not be loaded` | Wrong passphrase, or the PEM has no `PRIVATE KEY` block | Rebuild the PEM: `cat missivus.key missivus.crt > missivus.pem` |
 | Nothing happens, no error | Missivus is switched off, so Matomo used its own settings | Tick **Send email through Microsoft Graph** |
+| The **Send test email** button is greyed out | The saved settings are incomplete, or Missivus is switched off | Read the note under the button — it names what is missing. Fill it in and click **Save** |
 
 Missivus writes every failure to Matomo's log at error level, so
 **Administration → Diagnostic → System Check** and your Matomo log are the next place to look.
