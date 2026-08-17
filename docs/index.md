@@ -301,7 +301,7 @@ Or straight from git:
 
 ```bash
 cd /path/to/matomo
-git clone https://github.com/Solvetus/missivus-COM-app-matomo.git plugins/Missivus
+git clone https://github.com/Solvetus/missivus-matomo.git plugins/Missivus
 ./console plugin:activate Missivus
 ```
 
@@ -488,7 +488,7 @@ that Entra also accepts. This should not be necessary — please open an issue i
 ## Getting help
 
 Open an issue at
-<https://github.com/Solvetus/missivus-COM-app-matomo/issues>. Never paste a client secret,
+<https://github.com/Solvetus/missivus-matomo/issues>. Never paste a client secret,
 a certificate, or a PEM file into an issue.
 
 If you would rather have this set up for you, [Solvetus](https://solvetus.com) does paid

@@ -144,7 +144,7 @@ Matomo one.
 ## Where do I report a bug, or a security problem?
 
 Bugs and feature requests: the
-[issue tracker](https://github.com/Solvetus/missivus-COM-app-matomo/issues).
+[issue tracker](https://github.com/Solvetus/missivus-matomo/issues).
 
 Security problems: email <hello@solvetus.com> instead, and please give us a chance to fix it before
 it becomes public. [docs/SECURITY.md](SECURITY.md) documents what has already been reviewed.

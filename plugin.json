@@ -6,12 +6,12 @@
     "category": "integration",
     "keywords": ["email", "mail", "microsoft", "graph", "office365", "microsoft365", "exchange", "smtp", "entra"],
     "license": "GPL-3.0+",
-    "homepage": "https://github.com/Solvetus/missivus-COM-app-matomo",
+    "homepage": "https://github.com/Solvetus/missivus-matomo",
     "support": {
         "email": "hello@solvetus.com",
-        "issues": "https://github.com/Solvetus/missivus-COM-app-matomo/issues",
-        "source": "https://github.com/Solvetus/missivus-COM-app-matomo",
-        "docs": "https://github.com/Solvetus/missivus-COM-app-matomo/blob/main/docs/index.md"
+        "issues": "https://github.com/Solvetus/missivus-matomo/issues",
+        "source": "https://github.com/Solvetus/missivus-matomo",
+        "docs": "https://github.com/Solvetus/missivus-matomo/blob/main/docs/index.md"
     },
     "authors": [
         {

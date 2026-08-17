@@ -103,6 +103,6 @@ Initial release.
   test-email button.
 - Optional fallback to Matomo's own transport, off by default; nothing is ever swallowed.
 
-[0.1.2]: https://github.com/Solvetus/missivus-COM-app-matomo/releases/tag/v0.1.2
-[0.1.1]: https://github.com/Solvetus/missivus-COM-app-matomo/releases/tag/v0.1.1
-[0.1.0]: https://github.com/Solvetus/missivus-COM-app-matomo/releases/tag/v0.1.0
+[0.1.2]: https://github.com/Solvetus/missivus-matomo/releases/tag/v0.1.2
+[0.1.1]: https://github.com/Solvetus/missivus-matomo/releases/tag/v0.1.1
+[0.1.0]: https://github.com/Solvetus/missivus-matomo/releases/tag/v0.1.0

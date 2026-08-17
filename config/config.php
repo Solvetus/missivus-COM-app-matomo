@@ -3,7 +3,7 @@
 /**
  * Missivus — send Matomo email through the Microsoft Graph API.
  *
- * @link    https://github.com/Solvetus/missivus-COM-app-matomo
+ * @link    https://github.com/Solvetus/missivus-matomo
  * @license https://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 

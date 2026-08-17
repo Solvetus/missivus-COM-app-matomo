@@ -6,8 +6,8 @@ This file is the spec. `/goal` conditions reference it. Read it fully before pla
 
 A Solvetus Labs plugin family that sends an application's outbound email through the Microsoft
 Graph API using APPLICATION permissions and a shared mailbox — no user login, no delegated OAuth,
-no paid extension. This repo is the Matomo plugin (`Solvetus/missivus-COM-app-matomo`, GPLv3).
-A sibling repo `missivus-COM-app-wordpress` will later vendor the same Graph transport class
+no paid extension. This repo is the Matomo plugin (`Solvetus/missivus-matomo`, GPLv3).
+A sibling repo `missivus-wordpress` will later vendor the same Graph transport class
 unchanged.
 
 ## Why
@@ -92,7 +92,7 @@ only; do NOT reuse that app registration.
 
 - Secrets: owner places them in .env / config files; agent references by path only, never prints
   values, never commits them.
-- Repo: `Solvetus/missivus-COM-app-matomo` (Solvetus GitHub org). Small logical commits on
+- Repo: `Solvetus/missivus-matomo` (Solvetus GitHub org). Small logical commits on
   main. Push when tests pass.
 - Docs: marketplace-ready README, `docs/index.md` with the Azure/Entra and Exchange Online
   steps written for a non-expert (that guide is also the paid-install playbook), one tasteful

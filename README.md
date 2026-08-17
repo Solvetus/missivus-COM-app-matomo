@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="https://missivus.com"><img src=".github/mark.svg" alt="Missivus" width="40" height="41"></a>
+</p>
+
 # Missivus for Matomo
 
 ## Description
