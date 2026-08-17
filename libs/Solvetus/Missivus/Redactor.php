@@ -57,8 +57,9 @@ class Redactor
         }
 
         $patterns = array(
-            // "access_token":"eyJ0..." and friends, in JSON.
-            '/("(?:access_token|refresh_token|id_token|client_secret|client_assertion)"\s*:\s*")[^"]*(")/i',
+            // "access_token":"eyJ0..." and friends, in JSON. uploadUrl belongs in this list: it is
+            // pre-authenticated, so anyone holding it can write to the draft it was issued for.
+            '/("(?:access_token|refresh_token|id_token|client_secret|client_assertion|uploadUrl)"\s*:\s*")[^"]*(")/i',
             // client_secret=... in a form-encoded body.
             '/((?:client_secret|client_assertion|access_token)=)[^&\s]+/i',
             // Authorization: Bearer <token>

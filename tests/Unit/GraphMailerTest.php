@@ -337,6 +337,33 @@ class GraphMailerTest extends TestCase
         $this->mailer(false, '')->send($this->message());
     }
 
+    public function testATransportFailureWhileUploadingIsAGraphFailureAndKeepsTheUploadUrlOut()
+    {
+        // Whoever holds an upload URL can write to that draft, so it is a credential in its own
+        // right and must not survive into an error message or a log line.
+        $uploadUrl = 'https://outlook.example.test/upload/session-capability-token';
+
+        $this->queueToken();
+        $this->http->queueJson(201, array('id' => 'DRAFT-9'));
+        $this->http->queueJson(201, array('uploadUrl' => $uploadUrl));
+        $this->http->queue(function () use ($uploadUrl) {
+            throw new \RuntimeException('Unable to open ' . $uploadUrl);
+        });
+
+        $message = $this->message();
+        $message->addAttachment(new Attachment('big.pdf', str_repeat('A', 4 * 1024 * 1024), 'application/pdf'));
+
+        try {
+            $this->mailer()->send($message);
+            $this->fail('Expected a GraphException');
+        } catch (GraphException $e) {
+            // A RuntimeException here would sail straight past the transport's catch and skip the
+            // fallback, so the type matters as much as the message.
+            $this->assertStringNotContainsString('session-capability-token', $e->getMessage());
+            $this->assertStringContainsString('upload endpoint', $e->getMessage());
+        }
+    }
+
     /**
      * @param string $token
      * @return void

@@ -85,7 +85,8 @@ class GraphMailer
         $this->redactor = $redactor;
         $this->senderMailbox = trim((string) $senderMailbox);
         $this->saveToSentItems = (bool) $saveToSentItems;
-        $this->graphBaseUrl = rtrim((string) $graphBaseUrl, '/');
+        // A bearer token goes to this host. It is refused unless it is a bare https origin.
+        $this->graphBaseUrl = Endpoint::normalise($graphBaseUrl, 'graph_base_url');
         $this->logger = $logger === null ? new NullLogger() : $logger;
     }
 
@@ -283,15 +284,14 @@ class GraphMailer
 
             // No Authorization header: uploadUrl is pre-authenticated for outlook.office.com, and
             // attaching our Graph bearer token to a different host would leak it.
-            $chunkResponse = $this->http->put(
+            $chunkResponse = $this->put(
                 $uploadUrl,
                 $chunk,
                 array(
                     'Content-Type' => 'application/octet-stream',
                     'Content-Length' => (string) $length,
                     'Content-Range' => 'bytes ' . $offset . '-' . $end . '/' . $total,
-                ),
-                120
+                )
             );
 
             // Intermediate chunks answer 200; the last one answers 201 with a Location header.
@@ -358,6 +358,33 @@ class GraphMailer
             throw new GraphException(
                 'Missivus: could not reach the Microsoft Graph API: '
                 . $this->redactor->redact($e->getMessage())
+            );
+        }
+    }
+
+    /**
+     * PUT a chunk to a pre-authenticated upload URL.
+     *
+     * Two things make this worth its own method rather than a bare $this->http->put(). A transport
+     * failure here must surface as a GraphException like every other failure, or it would sail past
+     * the transport's catch and skip the fallback entirely. And the upload URL is itself a
+     * credential — anyone holding it can write to that draft — so it is masked out of the error
+     * message rather than left for a log file to keep.
+     *
+     * @param string $url
+     * @param string $chunk
+     * @param array  $headers
+     * @return HttpResponse
+     * @throws GraphException
+     */
+    private function put($url, $chunk, array $headers)
+    {
+        try {
+            return $this->http->put($url, $chunk, $headers, 120);
+        } catch (\RuntimeException $e) {
+            throw new GraphException(
+                'Missivus: could not reach the attachment upload endpoint: '
+                . $this->redactor->redact(str_replace($url, Redactor::MASK, $e->getMessage()))
             );
         }
     }

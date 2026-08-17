@@ -11,6 +11,7 @@ namespace Solvetus\Missivus\Auth;
 
 use Solvetus\Missivus\Contract\HttpClientInterface;
 use Solvetus\Missivus\Contract\TokenCacheInterface;
+use Solvetus\Missivus\Endpoint;
 use Solvetus\Missivus\Exception\GraphException;
 use Solvetus\Missivus\Redactor;
 
@@ -63,7 +64,8 @@ class TokenProvider
         $this->http = $http;
         $this->cache = $cache;
         $this->redactor = $redactor;
-        $this->loginBaseUrl = rtrim((string) $loginBaseUrl, '/');
+        // A client secret goes to this host. It is refused unless it is a bare https origin.
+        $this->loginBaseUrl = Endpoint::normalise($loginBaseUrl, 'login_base_url');
     }
 
     /**

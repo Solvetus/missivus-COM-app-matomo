@@ -120,4 +120,16 @@ class RedactorTest extends TestCase
         $this->assertStringNotContainsString('super-secret-value', print_r($credentials->__debugInfo(), true));
         $this->assertStringContainsString('tenant-id', (string) $credentials);
     }
+
+    public function testAnUploadUrlIsBlankedBecauseItIsItselfACredential()
+    {
+        $redactor = new Redactor();
+
+        $body = '{"uploadUrl":"https://outlook.example.test/upload/AQMkAGY-capability","expirationDateTime":"2026-08-17T12:00:00Z"}';
+
+        $result = $redactor->redact($body);
+
+        $this->assertStringNotContainsString('AQMkAGY-capability', $result);
+        $this->assertStringContainsString('expirationDateTime', $result, 'Harmless fields survive');
+    }
 }
