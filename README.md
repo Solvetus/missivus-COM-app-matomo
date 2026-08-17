@@ -84,7 +84,7 @@ yourself, [Solvetus](https://solvetus.com) offers paid installation and support.
 
    ```bash
    cd /path/to/matomo/plugins
-   unzip Missivus-0.1.2.zip
+   unzip Missivus-0.1.3.zip
    chown -R www-data:www-data Missivus
    ```
 

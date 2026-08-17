@@ -57,7 +57,7 @@
         "TestEmailRecipientLabel": "Send to",
         "TestEmailSubject": "Missivus test email from Matomo",
         "TestEmailBody": "This is a test email sent by the Missivus plugin through the Microsoft Graph API, from the mailbox %1$s. If you are reading it, Matomo can send email.",
-        "TestEmailSentTo": "Test email sent to %1$s. Check that it arrives — Microsoft accepted it, which is not quite the same as delivering it.",
+        "TestEmailSentTo": "Test email sent to %1$s. Microsoft accepted it — check the inbox to confirm delivery.",
         "TestEmailNoRecipient": "No recipient. Enter an address, or add one to your own Matomo user account.",
         "TestEmailInvalidRecipient": "That is not a valid email address.",
         "TestEmailNotReady": "Fill in the settings above, tick “Send email through Microsoft Graph”, and click Save. The test email is sent with the saved settings, so this button stays disabled until they are complete.",

@@ -4,6 +4,20 @@ All notable changes to Missivus for Matomo are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] — 2026-08-17
+
+### Changed
+
+- The test-email success message now reads "Test email sent to %s. Microsoft accepted it — check
+  the inbox to confirm delivery.", clearer about what "sent" does and does not guarantee.
+- `plugin.json`: `homepage` now points to `https://missivus.com` and `support.docs` to
+  `https://missivus.com/matomo/`, moving both off the GitHub repository now that the plugin has a
+  dedicated site. `license` stays `GPL-3.0+`.
+
+### Added
+
+- `screenshots/Settings_page.png`, the plugin's settings page for the Marketplace listing.
+
 ## [0.1.2] — 2026-08-17
 
 Marketplace readiness and public-repository hygiene. No functional change to the plugin itself.
