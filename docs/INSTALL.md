@@ -174,48 +174,112 @@ anything for Missivus**, which talks to Graph and needs none of these protocols:
 send as *anyone* in your tenant. An application access policy narrows it to the single shared
 mailbox, and it is what makes this whole model safe.
 
-You need Exchange Online PowerShell. On Windows PowerShell 7, or on macOS or Linux with PowerShell
-installed:
+**How it works, in one paragraph.** Exchange cannot point a policy at a single mailbox — it can
+only point one at a *group*. So you create a security group whose only member is the shared
+mailbox from Part 4, then tell Exchange "this app may only touch mailboxes in that group". The
+group gets an email address of its own (`noreply-apps@yourcompany.onmicrosoft.com` below), but nobody ever sends
+to it or from it; it exists purely so the policy has something to point at. Your shared mailbox
+stays exactly as you created it.
+
+You need PowerShell with the Exchange Online module. Windows has PowerShell built in; on macOS run
+`brew install --cask powershell` and then `pwsh`; on Linux see Microsoft's install page. Everything
+below is typed into that PowerShell window, one command at a time.
+
+**Before you start, have two values ready:**
+
+- the value shown in the **Application (client) ID** field on your app's Overview page (Part 1) —
+  a long identifier like `1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d`. Below it is written as
+  `PASTE-APPLICATION-CLIENT-ID`.
+- the address you sign in to <https://admin.microsoft.com> with. This is often **not** your normal
+  email — many tenants use a separate admin account such as `admin@yourcompany.onmicrosoft.com`.
+  Use that one; below it is written as `admin@yourcompany.onmicrosoft.com`.
+
+**How to fill in the commands.** Wherever you see `PASTE-APPLICATION-CLIENT-ID`, replace *only
+those words* with the Application (client) ID and **keep the quotation marks around it** — so
+`-AppId "PASTE-APPLICATION-CLIENT-ID"` becomes
+`-AppId "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"`. Same for `example.com` and the admin address.
+Change nothing else on the line.
+
+**Step 1 — install the module and sign in** (a browser window opens; sign in with the admin
+account):
 
 ```powershell
 Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser
-Import-Module ExchangeOnlineManagement
-Connect-ExchangeOnline -UserPrincipalName you@example.com
+Connect-ExchangeOnline -UserPrincipalName admin@yourcompany.onmicrosoft.com
 ```
 
-Create a mail-enabled security group holding just the shared mailbox, then scope the app to it. If
-you later add another tool that sends from the same mailbox, reuse this group and create a second
-policy for that tool's own app registration:
+**Step 2 — create the group.** One line. Its only member is your shared mailbox:
 
 ```powershell
-New-DistributionGroup -Name "Missivus Mailboxes" `
-  -Alias missivus-mailboxes `
-  -Type Security `
-  -Members "noreply@example.com"
-
-New-ApplicationAccessPolicy `
-  -AppId "<your Application (client) ID from Part 1>" `
-  -PolicyScopeGroupId "missivus-mailboxes@example.com" `
-  -AccessRight RestrictAccess `
-  -Description "Missivus may only send as the Matomo shared mailbox"
+New-DistributionGroup -Name "NoReply Apps" -Alias noreply-apps -Type Security -Members "noreply@example.com"
 ```
 
-Wait a few minutes — Exchange takes time to apply it — then check it worked:
+PowerShell prints the group it created. Note the **PrimarySmtpAddress** it shows. It is usually
+**not** on your normal domain but on your tenant's built-in one —
+`noreply-apps@yourcompany.onmicrosoft.com`. If you are unsure, run
+`Get-DistributionGroup -Identity noreply-apps | Format-List PrimarySmtpAddress` and copy the value.
+That exact address is what goes in the next command; using the wrong domain gives
+`The identity of the policy scope could not be resolved`.
+
+**Step 3 — lock the app to the group.** One line. Paste the Application (client) ID and the group
+address from Step 2 inside the quotes:
 
 ```powershell
-# Should say AccessCheckResult : Granted
-Test-ApplicationAccessPolicy -Identity "noreply@example.com" -AppId "<your client ID>"
-
-# Should say AccessCheckResult : Denied
-Test-ApplicationAccessPolicy -Identity "someone-else@example.com" -AppId "<your client ID>"
+New-ApplicationAccessPolicy -AppId "PASTE-APPLICATION-CLIENT-ID" -PolicyScopeGroupId "noreply-apps@yourcompany.onmicrosoft.com" -AccessRight RestrictAccess -Description "Missivus (Matomo) may only send as noreply@example.com"
 ```
 
-If the second command says **Granted**, the policy has not taken effect yet. Wait and try again
-before going any further.
+**Step 4 — wait 5–10 minutes**, then check it took effect. Two commands; paste the same
+Application (client) ID in both. In the second, use any *other* mailbox in your tenant — your own
+email address is fine:
 
 ```powershell
+Test-ApplicationAccessPolicy -Identity "noreply@example.com" -AppId "PASTE-APPLICATION-CLIENT-ID"
+Test-ApplicationAccessPolicy -Identity "you@example.com" -AppId "PASTE-APPLICATION-CLIENT-ID"
+```
+
+The first must show `AccessCheckResult : Granted`. The second must show
+`AccessCheckResult : Denied`. If the second still says **Granted**, the policy has not propagated
+yet: wait and run it again. Do not go further until it says Denied.
+
+**Step 5 — pre-flight: send one real email from PowerShell.** Optional but strongly
+recommended: it proves tenant, app, secret and policy end to end before Matomo is involved, so
+any later failure is the plugin's, not Microsoft's. Fill in the three values (keep the quotes):
+your **Directory (tenant) ID** and **Application (client) ID** from Part 1, and the secret
+**Value** from Part 3. Replace `you@example.com` with your own inbox.
+
+```powershell
+$TenantId = "PASTE-DIRECTORY-TENANT-ID"
+$ClientId = "PASTE-APPLICATION-CLIENT-ID"
+$Secret   = "PASTE-SECRET-VALUE"
+
+$tok = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" -Body @{ client_id=$ClientId; client_secret=$Secret; scope="https://graph.microsoft.com/.default"; grant_type="client_credentials" }
+$tok.access_token.Substring(0,20)
+```
+
+If that prints 20 characters, authentication works. If it errors, the tenant ID or the secret is
+wrong — most often the *Secret ID* was copied instead of the *Value*. Then send:
+
+```powershell
+$body = '{"message":{"subject":"Missivus pre-flight","body":{"contentType":"Text","content":"Graph app-only send OK"},"toRecipients":[{"emailAddress":{"address":"you@example.com"}}]},"saveToSentItems":false}'
+Invoke-WebRequest -Method Post -Uri "https://graph.microsoft.com/v1.0/users/noreply@example.com/sendMail" -Headers @{ Authorization = "Bearer $($tok.access_token)" } -ContentType "application/json" -Body $body | Select-Object StatusCode
+```
+
+`StatusCode 202` and an email in your inbox from your company name = the Microsoft side is
+done. `403` = the policy is still propagating or admin consent is missing; `404` = the mailbox
+has not finished provisioning — wait and retry.
+
+**Step 6 — clean up and sign out.** The secret was typed into this window, so clear it:
+
+```powershell
+Remove-Variable Secret,tok,body
 Disconnect-ExchangeOnline
 ```
+
+Then close the PowerShell window.
+
+**Adding another tool later** (Uptime Kuma, a CRM, anything that sends as `noreply@`): give it its
+own app registration (Parts 1–3), then run only Step 3 again with that app's Application (client)
+ID. The group from Step 2 is reused; you never create a second one.
 
 ---
 
