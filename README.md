@@ -9,10 +9,12 @@
 **Send Matomo's email through Microsoft 365 — without SMTP, without a user account, and without a
 paid add-on.**
 
-Matomo has no email API. It sends only through PHPMailer, over SMTP or PHP's `mail()`. Microsoft has
-retired basic-authentication SMTP for Microsoft 365, and Matomo's own FAQ now treats the Microsoft
-365 SMTP path as unsupported. The result is a Matomo that quietly sends nothing: no password resets,
-no scheduled reports, no alerts.
+Matomo has no email API. It sends only through PHPMailer, over SMTP or PHP's `mail()`. Microsoft is
+retiring basic-authentication SMTP for Microsoft 365 — disabled by default for existing tenants at
+the end of December 2026, unavailable by default for new tenants after that, with the final removal
+date to be announced in the second half of 2027 — and Matomo's own FAQ already treats the Microsoft
+365 SMTP path as unsupported. The result, once your tenant's switch flips, is a Matomo that quietly
+sends nothing: no password resets, no scheduled reports, no alerts.
 
 Missivus replaces Matomo's mail transport with one that posts to the Microsoft Graph API using
 **OAuth2 client credentials** and the **Mail.Send application permission**, sending as one shared
