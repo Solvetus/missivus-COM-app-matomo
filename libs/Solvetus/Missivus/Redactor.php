@@ -17,12 +17,23 @@ namespace Solvetus\Missivus;
  *
  *  1. Known literals — the actual secret and passphrase we hold, replaced wherever they appear.
  *     Catches the case where a server echoes a submitted value straight back.
- *  2. Shape matching — bearer tokens, client_secret=/client_assertion= parameters, and JWTs.
- *     Catches values we were never given, such as an access token inside an Entra error payload.
+ *  2. Shape matching — bearer tokens, secret-looking parameters, JWTs, and credentials carried
+ *     inside a URL. Catches values we were never given, such as an access token inside an Entra
+ *     error payload, or a password somebody typed into MISSIVUS_GRAPH_BASE_URL.
  */
 class Redactor
 {
     const MASK = '***redacted***';
+
+    /**
+     * Parameter names whose value is assumed to be a secret, wherever `name=value` appears.
+     *
+     * Deliberately broader than the parameters Missivus itself sends: the point is to catch a
+     * credential somebody put somewhere it does not belong — an `access_token` in an endpoint
+     * override, an authorisation `code` echoed in an Entra error — not to describe our own traffic.
+     */
+    const SECRET_PARAMS = 'access_token|refresh_token|id_token|client_secret|client_assertion'
+        . '|assertion|api_key|apikey|password|passwd|pwd|secret|signature|token|code|sig|sas';
 
     /** @var string[] */
     private $literals = array();
@@ -60,8 +71,14 @@ class Redactor
             // "access_token":"eyJ0..." and friends, in JSON. uploadUrl belongs in this list: it is
             // pre-authenticated, so anyone holding it can write to the draft it was issued for.
             '/("(?:access_token|refresh_token|id_token|client_secret|client_assertion|uploadUrl)"\s*:\s*")[^"]*(")/i',
-            // client_secret=... in a form-encoded body.
-            '/((?:client_secret|client_assertion|access_token)=)[^&\s]+/i',
+            // Credentials inside a URL: https://user:password@host. Anchored on the "://" so an
+            // ordinary email address, which never has a scheme in front of it, is left alone.
+            '~([a-z][a-z0-9+.\-]*://)[^/?#\s@]+@~i',
+            // A secret-looking parameter, in a query string or a form-encoded body alike.
+            '~\b((?:' . self::SECRET_PARAMS . ')=)[^&\s"\'>]+~i',
+            // A fragment on a URL. Nothing Missivus talks to uses one, and it is a well-worn place
+            // for a token to hide, so the whole of it goes.
+            '~(https?://[^\s#]*)#\S+~i',
             // Authorization: Bearer <token>
             '/(Bearer\s+)[A-Za-z0-9\-._~+\/]+=*/i',
             // A bare JWT anywhere at all.
@@ -70,7 +87,9 @@ class Redactor
 
         $replacements = array(
             '$1' . self::MASK . '$2',
+            '$1' . self::MASK . '@',
             '$1' . self::MASK,
+            '$1#' . self::MASK,
             '$1' . self::MASK,
             self::MASK,
         );

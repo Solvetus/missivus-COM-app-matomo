@@ -82,9 +82,12 @@ class API extends \Piwik\Plugin\API
         try {
             $transport->sendWithoutFallback($mail);
         } catch (\Exception $e) {
-            // The Graph error body is already redacted and is the single most useful thing for
-            // diagnosing a misconfigured tenant, so it is surfaced rather than generalised away.
-            return array('success' => false, 'message' => $e->getMessage());
+            // The Graph error body is the single most useful thing for diagnosing a misconfigured
+            // tenant, so it is surfaced rather than generalised away — but only after the same
+            // redaction pass the transport applies to everything it logs. This response is rendered
+            // in a browser, which is the one place a leaked endpoint credential would be read by a
+            // human rather than merely written to a file.
+            return array('success' => false, 'message' => $transport->redact($e->getMessage()));
         }
 
         return array(

@@ -4,6 +4,37 @@ All notable changes to Missivus for Matomo are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] — 2026-08-18
+
+### Security
+
+- **Endpoint override URLs are no longer repeated back into errors, logs, or the test-email
+  response.** `Endpoint::normalise()` refused an unsafe `graph_base_url` / `login_base_url`
+  correctly, but ended its message with the rejected value verbatim — and that message was then
+  logged by `GraphTransport` and returned to the superuser by `API.sendTestEmail` with no final
+  redaction pass. A value set through `MISSIVUS_GRAPH_BASE_URL` or `MISSIVUS_LOGIN_BASE_URL` that
+  carried credentials (`https://user:password@host`) or a token (`?access_token=…`) could therefore
+  reach a Matomo log file and the settings page. Fixed in three independent layers:
+  - `Endpoint` builds every message from scheme, host, port and path only — userinfo, query string
+    and fragment are never assembled into a message at all — and reports a value it cannot parse,
+    or a host name it cannot accept, by reason rather than by value.
+  - `Redactor` gained URL patterns: credentials inside a URL, any `name=value` on the new
+    `Redactor::SECRET_PARAMS` list (`access_token`, `client_secret`, `code`, `password`,
+    `signature`, `sas`, …), and URL fragments. An ordinary mailbox address is deliberately left
+    alone.
+  - `GraphTransport::redact()` is now the single final pass on every string the transport logs or
+    rethrows, and `API.sendTestEmail` applies the same pass to the message it returns.
+
+  Reported by [@textagroup](https://github.com/textagroup) (Kirk Mayo) —
+  [#1](https://github.com/Solvetus/missivus-matomo/issues/1). Thank you. Written up as finding 12 in
+  [docs/SECURITY.md](docs/SECURITY.md).
+
+### Added
+
+- Eleven tests covering the above: URLs with userinfo, with `access_token` / `client_secret` /
+  `code` query parameters, and with fragments, asserted absent from exception messages, from the
+  log, and from the string the API method returns. 75 tests in total, all passing.
+
 ## [0.1.3] — 2026-08-17
 
 ### Changed
@@ -117,6 +148,8 @@ Initial release.
   test-email button.
 - Optional fallback to Matomo's own transport, off by default; nothing is ever swallowed.
 
+[0.1.4]: https://github.com/Solvetus/missivus-matomo/releases/tag/v0.1.4
+[0.1.3]: https://github.com/Solvetus/missivus-matomo/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Solvetus/missivus-matomo/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Solvetus/missivus-matomo/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Solvetus/missivus-matomo/releases/tag/v0.1.0

@@ -251,6 +251,96 @@ class GraphTransportTest extends TestCase
         }
     }
 
+    public function testAGraphBaseUrlCarryingCredentialsNeverReachesTheLogOrTheException()
+    {
+        $this->config->fallback = false;
+        $this->config->graphBaseUrl = 'https://admin:hunter2-correct-horse@graph.evil.test/?access_token=TOKEN-VALUE#FRAGMENT-VALUE';
+
+        $transport = $this->transport();
+
+        try {
+            $transport->send($this->simpleMail());
+            $this->fail('Expected a GraphException');
+        } catch (GraphException $e) {
+            $this->assertSame(0, $this->http->count(), 'Nothing left the process');
+            $this->assertNoSecretIn($e->getMessage(), 'the rethrown exception');
+            $this->assertNoSecretIn($this->logger->everything(), 'the log');
+            $this->assertNoSecretIn($transport->redact($e->getMessage()), 'the test-email API response');
+            $this->assertStringContainsString('graph_base_url', $e->getMessage(), 'The setting is still named');
+        }
+    }
+
+    public function testALoginBaseUrlCarryingCredentialsNeverReachesTheLogOrTheException()
+    {
+        $this->config->fallback = false;
+        $this->config->loginBaseUrl = 'https://admin:hunter2-correct-horse@login.evil.test/?client_secret=SECRET-VALUE#FRAGMENT-VALUE';
+
+        $transport = $this->transport();
+
+        try {
+            $transport->send($this->simpleMail());
+            $this->fail('Expected a GraphException');
+        } catch (GraphException $e) {
+            $this->assertSame(0, $this->http->count(), 'The secret must never leave the process');
+            $this->assertNoSecretIn($e->getMessage(), 'the rethrown exception');
+            $this->assertNoSecretIn($this->logger->everything(), 'the log');
+            $this->assertNoSecretIn($transport->redact($e->getMessage()), 'the test-email API response');
+        }
+    }
+
+    public function testTheTestEmailPathRedactsWhatItHandsBackToTheSuperuser()
+    {
+        // Exactly what API::sendTestEmail() does: send without the fallback, then render the
+        // failure. Both halves are asserted, because the browser is the one place a leaked
+        // endpoint credential would be read by a person rather than merely written to a file.
+        $this->config->loginBaseUrl = 'https://admin:hunter2-correct-horse@login.evil.test/?access_token=TOKEN-VALUE#FRAGMENT-VALUE';
+
+        $transport = $this->transport();
+
+        try {
+            $transport->sendWithoutFallback($this->simpleMail());
+            $this->fail('Expected a GraphException');
+        } catch (GraphException $e) {
+            $this->assertNoSecretIn($transport->redact($e->getMessage()), 'the API response');
+        }
+    }
+
+    public function testAFailureThatEchoesTheEndpointStillLosesItsCredentialsOnTheWayToTheLog()
+    {
+        // The belt to the Endpoint braces: even if some future message did carry the raw URL, the
+        // transport's final redaction pass has to blank it before anything is written.
+        $transport = $this->transport();
+
+        $redacted = $transport->redact(
+            'talking to https://admin:hunter2-correct-horse@graph.evil.test/?access_token=TOKEN-VALUE#FRAGMENT-VALUE'
+        );
+
+        $this->assertNoSecretIn($redacted, 'the redaction pass');
+        $this->assertStringContainsString('graph.evil.test', $redacted, 'The host survives, and is the useful part');
+    }
+
+    public function testTheConfiguredClientSecretNeverSurvivesTheRedactionPass()
+    {
+        $transport = $this->transport();
+
+        $this->assertStringNotContainsString(
+            'super-secret-value',
+            $transport->redact('Entra says super-secret-value was rejected')
+        );
+    }
+
+    /**
+     * @param string $text
+     * @param string $where
+     * @return void
+     */
+    private function assertNoSecretIn($text, $where)
+    {
+        foreach (array('hunter2-correct-horse', 'admin:', 'TOKEN-VALUE', 'SECRET-VALUE', 'FRAGMENT-VALUE') as $secret) {
+            $this->assertStringNotContainsString($secret, $text, 'Leaked into ' . $where);
+        }
+    }
+
     /**
      * @return Mail
      */

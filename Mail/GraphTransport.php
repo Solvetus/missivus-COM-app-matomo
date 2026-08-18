@@ -113,7 +113,43 @@ class GraphTransport extends Transport
      */
     public function sendWithoutFallback(Mail $mail)
     {
-        $this->deliver($mail);
+        try {
+            $this->deliver($mail);
+        } catch (GraphException $e) {
+            throw $e->redactedWith($this->redactor());
+        }
+    }
+
+    /**
+     * The single redaction pass every string leaving this class goes through, exposed because the
+     * API method that renders a failed test email to a superuser is the one caller outside it.
+     *
+     * @param string $text
+     * @return string
+     */
+    public function redact($text)
+    {
+        return $this->redactor()->redact($text);
+    }
+
+    /**
+     * A redactor loaded with whatever literal secrets the current configuration holds.
+     *
+     * Built per call rather than cached: a configuration broken enough that getCredentials()
+     * throws must still get the shape-matching layer, and must not leave a literal-less redactor
+     * behind for the next send once it is fixed.
+     *
+     * @return Redactor
+     */
+    private function redactor()
+    {
+        try {
+            return new Redactor($this->config->getCredentials()->getSecretLiterals());
+        } catch (\Exception $e) {
+            // No credentials to blank by literal. The patterns still apply, and they are the layer
+            // that catches a value we were never given in the first place.
+            return new Redactor();
+        }
     }
 
     /**
@@ -130,7 +166,7 @@ class GraphTransport extends Transport
         }
 
         $credentials = $this->config->getCredentials();
-        $redactor = new Redactor($credentials->getSecretLiterals());
+        $redactor = $this->redactor();
 
         $tokens = new TokenProvider(
             $credentials,
@@ -162,10 +198,10 @@ class GraphTransport extends Transport
     private function handleFailure(GraphException $e, Mail $mail)
     {
         // Logged at error level either way — the brief's hard rule is that nothing is swallowed.
-        $this->logger->error('Missivus: sending over Microsoft Graph failed: ' . $e->getMessage());
+        $this->logger->error($this->redact('Missivus: sending over Microsoft Graph failed: ' . $e->getMessage()));
 
         if (!$this->config->shouldFallBackToDefaultTransport()) {
-            throw $e;
+            throw $e->redactedWith($this->redactor());
         }
 
         $this->logger->error('Missivus: falling back to Matomo\'s default mail transport');
@@ -236,10 +272,10 @@ class GraphTransport extends Transport
             return;
         }
 
-        $this->logger->warning(
+        $this->logger->warning($this->redact(
             'Missivus: forcing From to ' . $sender . '; Matomo asked for ' . $requested
             . '. Set [General] noreply_email_address to the shared mailbox to silence this.'
-        );
+        ));
 
         // Only when nothing else claimed Reply-To, so an explicit one is never clobbered.
         if (!$message->hasReplyTo()) {

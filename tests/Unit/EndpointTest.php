@@ -64,6 +64,92 @@ class EndpointTest extends TestCase
         Endpoint::normalise('https://user:pass@login.example.test', 'login_base_url');
     }
 
+    public function testTheRefusalNeverRepeatsTheUserinfoBackAtTheOperator()
+    {
+        try {
+            Endpoint::normalise('https://admin:hunter2-correct-horse@login.example.test', 'login_base_url');
+            $this->fail('Expected a GraphException');
+        } catch (GraphException $e) {
+            $this->assertStringNotContainsString('hunter2-correct-horse', $e->getMessage());
+            $this->assertStringNotContainsString('admin:', $e->getMessage());
+            $this->assertStringNotContainsString('@', $e->getMessage());
+            $this->assertStringContainsString('login.example.test', $e->getMessage(), 'The host is safe, and useful');
+            $this->assertStringContainsString('login_base_url', $e->getMessage(), 'So is the setting name');
+        }
+    }
+
+    public function testTheRefusalNeverRepeatsAQueryStringBackAtTheOperator()
+    {
+        $urls = array(
+            'https://login.example.test/?access_token=TOKEN-VALUE-SHOULD-NOT-APPEAR',
+            'https://login.example.test/?client_secret=SECRET-VALUE-SHOULD-NOT-APPEAR',
+            'https://login.example.test/?code=CODE-VALUE-SHOULD-NOT-APPEAR',
+        );
+
+        foreach ($urls as $url) {
+            try {
+                Endpoint::normalise($url, 'login_base_url');
+                $this->fail('Expected a GraphException for ' . $url);
+            } catch (GraphException $e) {
+                $this->assertStringNotContainsString('SHOULD-NOT-APPEAR', $e->getMessage());
+                $this->assertStringNotContainsString('?', $e->getMessage());
+                $this->assertStringNotContainsString('=', $e->getMessage());
+                $this->assertStringContainsString('login.example.test', $e->getMessage());
+            }
+        }
+    }
+
+    public function testTheRefusalNeverRepeatsAFragmentBackAtTheOperator()
+    {
+        try {
+            Endpoint::normalise('https://graph.example.test/v1.0#FRAGMENT-SHOULD-NOT-APPEAR', 'graph_base_url');
+            $this->fail('Expected a GraphException');
+        } catch (GraphException $e) {
+            $this->assertStringNotContainsString('FRAGMENT-SHOULD-NOT-APPEAR', $e->getMessage());
+            $this->assertStringNotContainsString('#', $e->getMessage());
+            $this->assertStringContainsString('https://graph.example.test/v1.0', $e->getMessage());
+        }
+    }
+
+    public function testAnHttpUrlWithCredentialsIsRefusedWithoutNamingThem()
+    {
+        // The scheme check fires first, so this is the one refusal built from a URL we have already
+        // decided is hostile. It still may not echo the userinfo.
+        try {
+            Endpoint::normalise('http://admin:hunter2-correct-horse@login.evil.test', 'login_base_url');
+            $this->fail('Expected a GraphException');
+        } catch (GraphException $e) {
+            $this->assertStringNotContainsString('hunter2-correct-horse', $e->getMessage());
+            $this->assertSame(
+                'Missivus: login_base_url must be an https:// URL.'
+                . ' Refusing to send credentials to http://login.evil.test',
+                $e->getMessage()
+            );
+        }
+    }
+
+    public function testSomethingUnparseableIsRefusedWithoutBeingEchoedAtAll()
+    {
+        // No structure means no part of it can be called safe, so none of it is repeated.
+        try {
+            Endpoint::normalise('WHOLE-THING-IS-A-SECRET', 'graph_base_url');
+            $this->fail('Expected a GraphException');
+        } catch (GraphException $e) {
+            $this->assertStringNotContainsString('WHOLE-THING-IS-A-SECRET', $e->getMessage());
+            $this->assertStringContainsString('not a valid endpoint URL', $e->getMessage());
+        }
+    }
+
+    public function testAnInvalidHostIsRefusedWithoutBeingEchoed()
+    {
+        try {
+            Endpoint::normalise('https://gr@ph_HOST-NOT-ECHOED.example.test', 'graph_base_url');
+            $this->fail('Expected a GraphException');
+        } catch (GraphException $e) {
+            $this->assertStringNotContainsString('HOST-NOT-ECHOED', $e->getMessage());
+        }
+    }
+
     public function testSomethingThatIsNotAUrlAtAllIsRefused()
     {
         $this->expectException(GraphException::class);

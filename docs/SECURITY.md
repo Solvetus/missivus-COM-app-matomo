@@ -1,6 +1,7 @@
 # Missivus — security review
 
-Review performed 2026-08-17 against the v0.1.1 tree, after the first live deployment.
+Review performed 2026-08-17 against the v0.1.1 tree, after the first live deployment. Finding 12 was
+added on 2026-08-18, from an external report against v0.1.3.
 
 Scope, as commissioned: the Graph transport, the settings model, the `Missivus.sendTestEmail` API
 method, and the Vue component — audited for **secret leakage** through logs, API responses, HTML
@@ -28,6 +29,7 @@ Everything marked *(verified)* was checked against Matomo's own source at
 | 9 | The Graph access token is cached in Matomo's file-backed cache | Low | **Accepted, documented** |
 | 10 | A superuser can send test mail to any address, unthrottled | Low | **Accepted, documented** |
 | 11 | A DB-stored client secret is stored in plaintext in the `option` table | Low | **Mitigated, not eliminated** |
+| 12 | Endpoint override URLs were echoed verbatim into validation errors, logs and the test-email response | Low | **Fixed** |
 
 ---
 
@@ -52,8 +54,10 @@ warning.
 bare `https` origin (no `http`, no embedded credentials, no query string, no malformed host) throws
 a `GraphException` *before* any request is built. Because the constructors run inside
 `GraphTransport::deliver()`, the refusal follows the normal failure policy: logged at error level,
-and either surfaced or handed to the fallback. Eight tests in `tests/Unit/EndpointTest.php`,
+and either surfaced or handed to the fallback. Fourteen tests in `tests/Unit/EndpointTest.php`,
 including two that assert nothing left the process.
+
+The refusal message itself later turned out to repeat the rejected URL verbatim; see finding 12.
 
 ### 2. A mid-upload network failure escaped unhandled and named the upload URL — Low–Medium
 
@@ -107,6 +111,57 @@ method refuses anything but an HTTP POST when not running under the console. The
 uses `AjaxHelper.post()` with the recipient in the request body rather than the query string, so the
 address also stops appearing in web-server access logs. See finding 6 for why the POST rule is a
 second lock rather than the first one.
+
+---
+
+### 12. Endpoint override URLs — Low
+
+*Reported by [@textagroup](https://github.com/textagroup) (Kirk Mayo) as
+[issue #1](https://github.com/Solvetus/missivus-matomo/issues/1), fixed in v0.1.4.*
+
+Finding 1 added `Endpoint::normalise()` and, in doing so, introduced this one: every refusal it
+raised ended with `: ' . $url`, the operator's configured value repeated back verbatim. The
+exception then travelled the ordinary failure path — `GraphTransport::handleFailure()` logged
+`$e->getMessage()` at error level, and `API::sendTestEmail()` returned it to the superuser's
+browser — with no final redaction pass on either.
+
+A base URL is not supposed to hold a credential, but the values that get *refused* are exactly the
+ones typed in wrongly. `MISSIVUS_GRAPH_BASE_URL=https://user:password@host` or
+`…?access_token=…` would have been rejected correctly and then written, in full, into Matomo's log
+and onto the settings page. Rated Low rather than higher because reaching it needs a
+misconfiguration the operator authored themselves, and because both readers of the result — the log
+file and the superuser screen — are already trusted surfaces; it is nevertheless a credential
+crossing a boundary it never needed to cross.
+
+**Fix**, in three layers, none of which relies on the other two:
+
+1. **`Endpoint` no longer assembles what it must not print.** The URL is parsed first, the host is
+   charset-checked before anything is echoed, and every message is built from a single
+   `describe()` helper that emits scheme, host, port and path — *only*. Userinfo, query string and
+   fragment are never concatenated into a message at all, so there is nothing to forget to mask. A
+   string too malformed to parse is not repeated at all, on the grounds that if it has no
+   structure, no part of it can be called safe: it gets `is not a valid endpoint URL: expected
+   scheme://host`. An invalid host name is likewise named as a reason, not a value.
+2. **`Redactor` learned URL shapes.** Alongside the existing bearer / `client_secret` /
+   `uploadUrl` / JWT patterns it now blanks credentials inside a URL (anchored on `://`, so an
+   ordinary mailbox address is left alone), any `name=value` whose name is on the
+   `Redactor::SECRET_PARAMS` list — `access_token`, `client_secret`, `code`, `password`,
+   `signature`, `sas` and the rest — in a query string or a form body alike, and the fragment of
+   any URL.
+3. **`GraphTransport` applies that pass to everything on its way out.** One `redact()` method,
+   used on every line it logs and on every exception it rethrows
+   (`GraphException::redactedWith()`, which reconstructs the failure from redacted parts and
+   deliberately does not chain the original as `previous`, so a handler that prints the whole chain
+   cannot print what was removed). `API::sendTestEmail()` calls the same method on the message it
+   returns to the browser.
+
+Eleven tests hold it: `EndpointTest` asserts that userinfo, `access_token` / `client_secret` /
+`code` query parameters, fragments, an unparseable value and an invalid host name are all absent
+from the exception; `RedactorTest` covers each new pattern and asserts that
+`noreply@example.com` and a Graph `/users/{mailbox}/sendMail` URL are *not* mangled; and
+`GraphTransportTest` drives a poisoned `graph_base_url` and `login_base_url` through the real
+failure path, asserting the secret appears in neither the exception, nor the log, nor the string
+the API method would return.
 
 ---
 
@@ -169,16 +224,21 @@ error level, which is a filesystem-level disclosure to whoever can already read 
 Every string Missivus logs or puts in an exception passes through `Redactor` first, which works in
 two layers: the literal secrets we hold are blanked wherever they appear — which catches a server
 echoing a submitted value back at us — and shape matching blanks `access_token` / `client_secret` /
-`client_assertion` / `uploadUrl` JSON fields, form-encoded credentials, `Bearer` headers, and bare
-JWTs, which catches values we were never given. A `preg_replace` failure (a huge body hitting the
+`client_assertion` / `uploadUrl` JSON fields, secret-looking `name=value` parameters, credentials
+and fragments inside a URL, `Bearer` headers, and bare JWTs, which catches values we were never
+given. A `preg_replace` failure (a huge body hitting the
 backtrack limit) returns the mask rather than the input: it fails closed. Bodies are truncated at
 2 KB before redaction.
 
 `Adapter\MatomoLogger` passes the message as a PSR-3 context value rather than interpolating it, so
 a brace inside a Graph error body cannot be mistaken for a placeholder.
 
-Nine tests in `RedactorTest` hold this, including one where an Entra error deliberately echoes our
-own secret back.
+Thirteen tests in `RedactorTest` hold this, including one where an Entra error deliberately echoes
+our own secret back, and one that asserts an ordinary mailbox address is *not* mistaken for URL
+credentials.
+
+The URL layers were added in v0.1.4; before that the redactor was correct about everything it was
+given, but `GraphTransport` did not put every outbound string through it. See finding 12.
 
 ---
 

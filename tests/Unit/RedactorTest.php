@@ -57,6 +57,51 @@ class RedactorTest extends TestCase
         $this->assertStringContainsString('scope=.default', $result);
     }
 
+    public function testCredentialsInsideAUrlAreBlanked()
+    {
+        $redactor = new Redactor();
+
+        $result = $redactor->redact('refusing https://admin:hunter2-correct-horse@login.evil.test as a base URL');
+
+        $this->assertStringNotContainsString('hunter2-correct-horse', $result);
+        $this->assertStringNotContainsString('admin', $result);
+        $this->assertStringContainsString('login.evil.test', $result, 'The host survives, and is the useful part');
+    }
+
+    public function testAnEmailAddressIsNotMistakenForUrlCredentials()
+    {
+        $redactor = new Redactor();
+
+        $text = 'Missivus: forcing From to noreply@example.com; see https://graph.example.test/v1.0/users/noreply@example.com/sendMail';
+        $result = $redactor->redact($text);
+
+        $this->assertSame($text, $result, 'A mailbox is not a credential and must not be mangled');
+    }
+
+    public function testSecretLookingQueryParametersAreBlankedWhereverTheyAppear()
+    {
+        $redactor = new Redactor();
+
+        $result = $redactor->redact(
+            'https://login.evil.test/?access_token=TOKEN-VALUE&client_secret=SECRET-VALUE&code=CODE-VALUE&tenant=contoso'
+        );
+
+        $this->assertStringNotContainsString('TOKEN-VALUE', $result);
+        $this->assertStringNotContainsString('SECRET-VALUE', $result);
+        $this->assertStringNotContainsString('CODE-VALUE', $result);
+        $this->assertStringContainsString('tenant=contoso', $result, 'Harmless parameters survive');
+    }
+
+    public function testAUrlFragmentIsBlanked()
+    {
+        $redactor = new Redactor();
+
+        $result = $redactor->redact('base URL was https://login.evil.test/#FRAGMENT-VALUE');
+
+        $this->assertStringNotContainsString('FRAGMENT-VALUE', $result);
+        $this->assertStringContainsString('login.evil.test', $result);
+    }
+
     public function testABearerHeaderIsBlanked()
     {
         $redactor = new Redactor();
