@@ -6,8 +6,8 @@
 
 ## Description
 
-**Send Matomo's email through Microsoft 365 — without SMTP, without a user account, and without a
-paid add-on.**
+**Missivus for Matomo — send Matomo email through Microsoft Graph with application permissions and a
+shared mailbox. No SMTP, no user login. Free, GPLv3.**
 
 Matomo has no email API. It sends only through PHPMailer, over SMTP or PHP's `mail()`. Microsoft is
 retiring basic-authentication SMTP for Microsoft 365 — disabled by default for existing tenants at
