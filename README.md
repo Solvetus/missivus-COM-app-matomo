@@ -9,12 +9,12 @@
 **Missivus for Matomo — send Matomo email through Microsoft Graph with application permissions and a
 shared mailbox. No SMTP, no user login. Free, GPLv3.**
 
-Matomo has no email API. It sends only through PHPMailer, over SMTP or PHP's `mail()`. Microsoft is
-retiring basic-authentication SMTP for Microsoft 365 — disabled by default for existing tenants at
-the end of December 2026, unavailable by default for new tenants after that, with the final removal
-date to be announced in the second half of 2027 — and Matomo's own FAQ already treats the Microsoft
-365 SMTP path as unsupported. The result, once your tenant's switch flips, is a Matomo that quietly
-sends nothing: no password resets, no scheduled reports, no alerts.
+Matomo has no email API. It sends only through PHPMailer, over SMTP or PHP's `mail()`. For Microsoft
+365 that means SMTP AUTH with basic authentication — a licensed user's password stored on your
+server as a shared credential, on a path Microsoft is retiring: disabled by default for existing
+tenants from the end of December 2026, unavailable to new tenants from 2027, with final removal to
+follow. Matomo's PHPMailer path cannot do the OAuth2 SMTP that replaces it. Sooner or later the
+password resets, scheduled reports and alerts stop.
 
 Missivus replaces Matomo's mail transport with one that posts to the Microsoft Graph API using
 **OAuth2 client credentials** and the **Mail.Send application permission**, sending as one shared
@@ -69,10 +69,13 @@ verify it actually took effect.
 
 ### Getting started
 
-Install the plugin, then follow **[the installation guide](docs/index.md)** — it is written for
-someone who has never opened Microsoft Entra, and every click is spelled out. Budget half an hour
-for the Microsoft side. The [FAQ](docs/faq.md) answers the questions that come up most often, and
-[docs/SECURITY.md](docs/SECURITY.md) is the standing security review.
+Install the plugin, then follow **[the installation guide](https://github.com/Solvetus/missivus-matomo/blob/main/docs/index.md)** —
+it is written for someone who has never opened Microsoft Entra, and every click is spelled out.
+Budget about an hour for the Microsoft side. The
+[FAQ](https://github.com/Solvetus/missivus-matomo/blob/main/docs/faq.md) answers the questions that
+come up most often, and
+[docs/SECURITY.md](https://github.com/Solvetus/missivus-matomo/blob/main/docs/SECURITY.md) is the
+standing security review.
 
 Missivus is free and open source (GPLv3). If you would rather not do the Entra and Exchange setup
 yourself, [Solvetus](https://solvetus.com) offers paid installation and support.
@@ -86,13 +89,13 @@ yourself, [Solvetus](https://solvetus.com) offers paid installation and support.
 
    ```bash
    cd /path/to/matomo/plugins
-   unzip Missivus-0.1.3.zip
+   unzip Missivus-<version>.zip
    chown -R www-data:www-data Missivus
    ```
 
    You can also upload the zip through **Administration → Platform → Plugins → Install a new
    plugin**, if your Matomo allows plugin uploads —
-   [the guide explains how to enable that safely](docs/index.md#upload-via-the-matomo-ui-docker-or-locked-down-installs).
+   [the guide explains how to enable that safely](https://github.com/Solvetus/missivus-matomo/blob/main/docs/index.md#upload-via-the-matomo-ui-docker-or-locked-down-installs).
 
 2. **Activate it.** Either tick it under **Administration → Plugins**, or from the command line:
 
@@ -118,8 +121,9 @@ yourself, [Solvetus](https://solvetus.com) offers paid installation and support.
    Microsoft returned is shown on the page.
 
 That is the whole installation. **You do not need to edit `config.ini.php`.** The
-[`[Missivus]` overrides](#configuration) below are entirely optional — they exist for people who
-prefer credentials to live in a file rather than the database.
+[`[Missivus]` overrides](https://github.com/Solvetus/missivus-matomo/blob/main/README.md#configuration)
+below are entirely optional — they exist for people who prefer credentials to live in a file rather
+than the database.
 
 The one Matomo setting worth adding by hand is the From address, under
 **Administration → System → General settings → Email server settings**, or in `config.ini.php`:
@@ -135,7 +139,9 @@ Missivus forces it either way — setting it here just keeps a warning out of yo
 ### Getting the Microsoft side ready
 
 The plugin needs an app registration before any of the above will work. Full step-by-step
-instructions are in **[docs/index.md](docs/index.md)**. In outline:
+instructions are in
+**[docs/index.md](https://github.com/Solvetus/missivus-matomo/blob/main/docs/index.md)**. In
+outline:
 
 1. Create an app registration in Microsoft Entra.
 2. Grant it the **Mail.Send** application permission — plus **Mail.ReadWrite** if you send
@@ -176,11 +182,12 @@ If you use a certificate instead of a secret, swap those two lines for
 
 ## Security
 
-[docs/SECURITY.md](docs/SECURITY.md) is the standing security review: how secrets are kept out of
-logs, API responses and page source, how the test-email API method is authenticated, and the risks
-that were accepted rather than eliminated, with the reasoning for each.
+[docs/SECURITY.md](https://github.com/Solvetus/missivus-matomo/blob/main/docs/SECURITY.md) is the
+standing security review: how secrets are kept out of logs, API responses and page source, how the
+test-email API method is authenticated, and the risks that were accepted rather than eliminated,
+with the reasoning for each.
 
-Found a vulnerability? Email <hello@solvetus.com> rather than opening a public issue.
+Found a vulnerability? Email <security@missivus.com> rather than opening a public issue.
 
 ## Development
 
@@ -190,7 +197,7 @@ php tests/run.php                       # the unit suite, no Composer or PHPUnit
 ./tools/build-zip.sh                    # builds dist/Missivus-<version>.zip for manual install
 ```
 
-[PLAN.md](PLAN.md) documents the architecture, the DI seam, and — usefully before a Matomo
+[PLAN.md](https://github.com/Solvetus/missivus-matomo/blob/main/PLAN.md) documents the architecture, the DI seam, and — usefully before a Matomo
 upgrade — the exact list of Matomo internals this plugin depends on, with class, method and the
 version they were verified against.
 
@@ -198,11 +205,11 @@ The Microsoft Graph transport in [`libs/Solvetus/Missivus/`](libs/Solvetus/Missi
 free of any Matomo symbol: it depends only on `openssl`, `json`, a two-method HTTP interface and a
 three-method cache interface, so the WordPress sibling plugin can vendor it unchanged.
 
-Release history is in [CHANGELOG.md](CHANGELOG.md).
+Release history is in [CHANGELOG.md](https://github.com/Solvetus/missivus-matomo/blob/main/CHANGELOG.md).
 
 ## Licence
 
-GPLv3 or later. See [LICENSE](LICENSE).
+GPLv3 or later. See [LICENSE](https://github.com/Solvetus/missivus-matomo/blob/main/LICENSE).
 
 ## Support
 

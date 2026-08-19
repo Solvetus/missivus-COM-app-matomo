@@ -300,5 +300,5 @@ route, and certificate authentication — where nothing secret is stored by Mato
 
 ## Reporting a vulnerability
 
-Email <hello@solvetus.com> with the details. Please do not open a public issue for a security
+Email <security@missivus.com> with the details. Please do not open a public issue for a security
 problem until it has been fixed.

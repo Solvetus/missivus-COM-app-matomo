@@ -4,6 +4,13 @@ All notable changes to Missivus for Matomo are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] — 2026-08-19
+
+### Fixed
+
+- docs: correct SMTP retirement timeline; absolute marketplace links; contact addresses; stale
+  version strings.
+
 ## [0.1.4] — 2026-08-18
 
 ### Security
@@ -148,6 +155,7 @@ Initial release.
   test-email button.
 - Optional fallback to Matomo's own transport, off by default; nothing is ever swallowed.
 
+[0.1.5]: https://github.com/Solvetus/missivus-matomo/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Solvetus/missivus-matomo/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Solvetus/missivus-matomo/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Solvetus/missivus-matomo/releases/tag/v0.1.2

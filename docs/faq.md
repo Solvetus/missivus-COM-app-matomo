@@ -9,16 +9,15 @@ it to a user mailbox, put it under litigation hold, or give it an archive.)
 
 ## Why not just use SMTP? Matomo already supports it.
 
-Because Microsoft is retiring it. All other Basic-auth protocols were switched off in 2022; SMTP
-AUTH basic authentication stays unchanged until December 2026, is disabled by default for existing
-tenants at the end of December 2026 and unavailable by default for new tenants after that, with the
-final removal date to be announced in the second half of 2027 (see Microsoft's
+Because it is on borrowed time, and because of what it costs you today. Microsoft is retiring
+basic-authentication SMTP AUTH for Microsoft 365: it is disabled by default for existing tenants
+from the end of December 2026, unavailable to new tenants from 2027, and the final removal date
+will be announced in 2027 (see Microsoft's
 [announcement](https://techcommunity.microsoft.com/blog/exchange/exchange-online-to-retire-basic-auth-for-client-submission-smtp-auth/4114750)
 and [updated timeline](https://techcommunity.microsoft.com/blog/exchange/updated-exchange-online-smtp-auth-basic-authentication-deprecation-timeline/4489835)).
-What remains is SMTP AUTH with OAuth2, which Matomo's PHPMailer path does not speak, or the legacy
-username-and-password flow, which many tenants already block and which requires a licensed user
-account whose password then becomes a shared server credential. Matomo's own FAQ treats the
-Microsoft 365 SMTP path as unsupported.
+What remains after that is SMTP AUTH with OAuth2, which Matomo's PHPMailer path does not speak. And
+even while it still works, SMTP means a licensed user account whose password sits on your server as
+a shared credential, with no way to scope what it can do.
 
 Graph with application permissions has neither problem: there is no password, no user, no licence,
 and the credential is scoped by Exchange to one mailbox.
@@ -105,7 +104,7 @@ Yes, with one temporary setting change. Matomo ships `enable_plugin_upload` **of
 any superuser upload a zip that Matomo then unpacks and executes — arbitrary PHP running as your web
 server user.
 
-The guide's [Upload via the Matomo UI](index.md#upload-via-the-matomo-ui-docker-or-locked-down-installs)
+The guide's [Upload via the Matomo UI](https://github.com/Solvetus/missivus-matomo/blob/main/docs/index.md#upload-via-the-matomo-ui-docker-or-locked-down-installs)
 section walks through turning it on from inside the container, uploading and activating the plugin,
 and — importantly — turning it back off again afterwards. Leaving it on is a standing
 remote-code-execution path for anyone who ever gets a superuser session.
@@ -122,7 +121,7 @@ written to Matomo's log at error level.
 
 ## I got an error code from Microsoft. What does it mean?
 
-The common ones, in full in the [installation guide's troubleshooting table](index.md#when-it-does-not-work):
+The common ones, in full in the [installation guide's troubleshooting table](https://github.com/Solvetus/missivus-matomo/blob/main/docs/index.md#when-it-does-not-work):
 
 | Code | Usually means |
 | --- | --- |
@@ -143,13 +142,21 @@ Any email that goes through `Piwik\Mail` goes through Missivus — that includes
 scheduled report PDFs, alerts, and third-party plugins that use Matomo's mail layer properly. A
 plugin that opens its own SMTP connection instead is untouched by any of this.
 
-A sibling WordPress plugin that vendors the same Graph transport is planned; this repository is the
-Matomo one.
+Missivus for Matomo has not been tested running under **Matomo for WordPress** specifically. If you
+run Matomo on WordPress, the supported route is the sibling **missivus-wordpress** plugin, which
+vendors the same Microsoft Graph transport for WordPress's own mail layer directly, rather than
+this Matomo plugin running inside a WordPress-hosted Matomo.
+
+The WordPress sibling has shipped — along with **missivus-nextcloud** and **missivus-ghost**, which
+send Nextcloud's and Ghost's own outbound email the same way. See
+[missivus.com](https://missivus.com) for all four.
 
 ## Where do I report a bug, or a security problem?
 
 Bugs and feature requests: the
 [issue tracker](https://github.com/Solvetus/missivus-matomo/issues).
 
-Security problems: email <hello@solvetus.com> instead, and please give us a chance to fix it before
-it becomes public. [docs/SECURITY.md](SECURITY.md) documents what has already been reviewed.
+Security problems: email <security@missivus.com> instead, and please give us a chance to fix it
+before it becomes public.
+[docs/SECURITY.md](https://github.com/Solvetus/missivus-matomo/blob/main/docs/SECURITY.md)
+documents what has already been reviewed.

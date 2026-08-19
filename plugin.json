@@ -1,6 +1,6 @@
 {
     "name": "Missivus",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "description": "Missivus for Matomo — send Matomo email through Microsoft Graph with application permissions and a shared mailbox. No SMTP, no user login.",
     "theme": false,
     "category": "integration",
@@ -8,7 +8,7 @@
     "license": "GPL-3.0+",
     "homepage": "https://missivus.com",
     "support": {
-        "email": "hello@solvetus.com",
+        "email": "support@missivus.com",
         "issues": "https://github.com/Solvetus/missivus-matomo/issues",
         "source": "https://github.com/Solvetus/missivus-matomo",
         "docs": "https://missivus.com/matomo/"
@@ -16,7 +16,7 @@
     "authors": [
         {
             "name": "Solvetus",
-            "email": "hello@solvetus.com",
+            "email": "support@missivus.com",
             "homepage": "https://solvetus.com"
         }
     ],

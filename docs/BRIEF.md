@@ -12,10 +12,12 @@ unchanged.
 
 ## Why
 
-Matomo has no email API. It sends only via PHPMailer (SMTP or PHP mail()). Microsoft has retired
-basic-auth SMTP for Microsoft 365, and Matomo's own FAQ now says the M365 SMTP path is
-unsupported; matomo-org/matomo issue #23651 (Oct 2025) is an open feature request for exactly
-this with no implementation. On WordPress, the existing option (Post SMTP's Office 365 mailer) is
+Matomo has no email API. It sends only via PHPMailer (SMTP or PHP mail()). Microsoft is retiring
+basic-auth SMTP for Microsoft 365 — disabled by default for existing tenants from end of December
+2026, unavailable to new tenants from 2027 — and Matomo's own FAQ
+(https://matomo.org/faq/how-to/faq_93/) already says the old M365 SMTP setup "is no longer
+supported" because Matomo has no OAuth2 SMTP path; matomo-org/matomo issue #23651 (Oct 2025) is an
+open feature request for exactly this with no implementation. On WordPress, the existing option (Post SMTP's Office 365 mailer) is
 a PAID extension using DELEGATED auth — multi-tenant app, redirect URI, a human clicks "Connect",
 mail goes out as that person's account. That is the wrong architecture for a server and breaks
 when the person leaves. Missivus is the opposite and that is the entire differentiator: client

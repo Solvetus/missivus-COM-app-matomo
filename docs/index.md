@@ -9,7 +9,7 @@ You will need:
   **Exchange Administrator**.
 - Access to the server Matomo runs on.
 
-Set aside about thirty minutes. Nothing here is reversible-by-accident; every step can be undone.
+Set aside about an hour. Nothing here is reversible-by-accident; every step can be undone.
 
 Throughout, replace `example.com` with your own domain and `noreply@example.com` with whatever
 address you want Matomo's email to come from.
@@ -291,7 +291,7 @@ From the release zip:
 
 ```bash
 cd /path/to/matomo/plugins
-unzip /path/to/Missivus-0.1.1.zip          # creates plugins/Missivus/
+unzip /path/to/Missivus-<version>.zip      # creates plugins/Missivus/
 chown -R www-data:www-data Missivus
 cd ..
 ./console plugin:activate Missivus
@@ -336,7 +336,7 @@ docker exec -u www-data <container> php /var/www/html/console config:set --secti
 
 **Step 2 — upload and activate.** In Matomo, go to **Administration (the cog) → Platform → Plugins**
 and click **Install a new plugin** at the top of the list. Choose **Upload a plugin**, pick the
-`Missivus-0.1.1.zip` file, and click **Upload plugin**. Matomo unpacks it into `plugins/Missivus`
+`Missivus-<version>.zip` file, and click **Upload plugin**. Matomo unpacks it into `plugins/Missivus`
 and shows it in the plugin list. Find **Missivus** in that list and click **Activate**.
 
 If the upload page does not appear, Matomo has not picked the setting up yet: reload the page, and
